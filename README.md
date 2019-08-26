@@ -99,6 +99,7 @@ The following program adds up the values in register 2 and register 3 and return
 destroying the original values in registers 1, 2 and 3.
 ```scala
 import papercomputer._
+import eu.timepit.refined.auto._
 
 object demo {
     val programAdditionR2PlusR3ToR1: Program = Map(
