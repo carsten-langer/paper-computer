@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/carsten-langer/paper-computer.svg?branch=master)](https://travis-ci.org/carsten-langer/paper-computer)
+
 # paper-computer
 A functional Scala library implementation of a computer working with a sheet of paper, a pen and a set of items e.g. matches
 (Streichholzcomputer / Papiercomputer), used for education in the 1980s.
