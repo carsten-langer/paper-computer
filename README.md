@@ -84,7 +84,7 @@ type ProgramExecution = (Program, Registers) => MorRegisters
 By convention the execution of a program starts at its lowest line number. Empty programs can be created,
 but cannot be executed.
 
-Execution is fully functional using trampolining so that no stack overflow occurs.
+Execution is fully functional using tailrec so that no stack overflow occurs.
 
 ### Command Enhancements
 This implementation of the paper-computer adds 2 commands for convenience:
