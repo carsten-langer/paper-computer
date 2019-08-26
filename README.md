@@ -78,7 +78,7 @@ A program execution takes a program and an initial registers state and returns e
 at the end of the program, or an error message, e.g. `IllegalAccessToNonExistingRegisterNumber`.
 
 ```scala
-type ProgramExecution = (Program, Registers) => Either[Message, Registers]
+type ProgramExecution = (Program, Registers) => MorRegisters
 ```
 
 By convention the execution of a program starts at its lowest line number. Empty programs can be created,
@@ -87,7 +87,7 @@ but cannot be executed.
 Execution is fully functional using trampolining so that no stack overflow occurs.
 
 ### Command Enhancements
-This implementation of the paper-compute adds 2 commands for convenience:
+This implementation of the paper-computer adds 2 commands for convenience:
 
 | Command | Meaning |
 | --- | --- |
@@ -96,12 +96,12 @@ This implementation of the paper-compute adds 2 commands for convenience:
 
 ## Example Usage
 The following program adds up the values in register 2 and register 3 and returns the result in register 1, thereby
-destroying the original values in registers 2 and 3.
+destroying the original values in registers 1, 2 and 3.
 ```scala
 import papercomputer._
 
 object demo {
-    val programAdditionR2plusR3toR1: Program = Map(
+    val programAdditionR2PlusR3ToR1: Program = Map(
           (10L, Isz(1L)),
           (20L, Jmp(40L)),
           (30L, Jmp(60L)),
@@ -120,13 +120,15 @@ object demo {
           (160L, Inc(1L)),
           (170L, Jmp(120L))
         )
-    val morRegisters: MorRegisters = Registers(minRegisterValue = -128L, maxRegisterValue =  127L,
+
+    // use arbitrary min/max values just to show we can!
+    val morRegisters: MorRegisters = Registers(minRegisterValue = -21, maxRegisterValue = 42L,
           registerValues = Map((1L, 42L), (2L, 4L), (3L, 5L))
         )
     
     val result: MorRegisterValue = for {
         initialRegisters <- morRegisters
-        resultingRegisters <- ProgramExecution.execute(programAdditionR2plusR3toR1, initialRegisters)
+        resultingRegisters <- ProgramExecution.execute(programAdditionR2PlusR3ToR1, initialRegisters)
         resultingR1 = resultingRegisters.registerValues(1L)
     } yield resultingR1
     // Right(9)
@@ -134,21 +136,26 @@ object demo {
 ```
 
 ### More Examples
-See (TODO).
+See [ProgramLibrary](https://github.com/carsten-langer/paper-computer/blob/master/src/main/scala/papercomputer/ProgramLibrary.scala) and 
+[ProgramLibraryTestSpec](https://github.com/carsten-langer/paper-computer/blob/master/src/test/scala/papercomputer/ProgramLibraryTestSpec.scala).
 
 ## Caveats
 If you allow negative values in the registers, it will work. However, the original set of 5 commands does not allow
 finding out if a given register value is positive or negative, the only test is `Isz`, which tests if a value is zero
 or not.
 
-The programs presented here and contained in the library are optimized for positive numbers. For example:
+The programs presented here and contained in the library are optimized for positive numbers. For example,
 adding 2 registers could be implemented such that as long as the second register is not zero, the first register
 is incremented and the second register is decremented. This _while-repeat-loop_ will finally have in the first register
 the sum of both original register values.
 
 However, if the second register value is negative, this _while-repeat-loop_ will decrement a negative value to an
-even more negative value and thus may take an awful lot of time to decrement the second value through the whole
-value space to reach its lowest value, so that it can then wrap-around to the highest value and after further
-decrementing finally reach the zero value. The end result will be correct, but the number of loop iterations may be
-up to the size of your value range minus 1, i.e. for simulating and 8-bit register up to 255 steps, for simulating a
+even more negative value farther away from zero. It may thus take an awful lot of time to decrement the second value
+through the whole value space to reach its lowest value, so that it can then wrap-around to the highest value and
+after further decrementing finally reach the zero value. At the same time the first register value will move through
+the whole value space in positive direction, wrap around from highest value to lowese value and continue to increment
+until the program stops.
+ 
+The end result will be correct, but the number of loop iterations may be
+up to the size of your value range minus 1, i.e. for simulating an 8-bit register up to 255 steps, for simulating a
 16-bit register already up to 65,536 steps.    
