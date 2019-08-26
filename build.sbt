@@ -1,16 +1,23 @@
-name := "match-computer"
+name := "paper-computer"
 
-version := "0.1"
+version := "0.2"
 
-scalaVersion := "2.12.8"
+// https://www.scala-lang.org/download/all.html
+scalaVersion := "2.12.9"
 
-// scalatest siehe http://www.scalatest.org/install
+// https://typelevel.org/cats/
+libraryDependencies += "org.typelevel" %% "cats-core" % "2.0.0-RC1"
+
+// http://www.scalatest.org/install
 // not used yet libraryDependencies += "org.scalactic" %% "scalactic" % "3.0.4"
 libraryDependencies += "org.scalatest" %% "scalatest" % "3.0.8" % "test"
+
+// https://www.scalacheck.org/
 libraryDependencies += "org.scalacheck" %% "scalacheck" % "1.14.0" % "test"
 
+// not needed as I do functional programming and property based testing
 // scalamock siehe http://scalamock.org/quick-start/
-//libraryDependencies += "org.scalamock" %% "scalamock-scalatest-support" % "3.6.0" % Test
+// libraryDependencies += "org.scalamock" %% "scalamock-scalatest-support" % "3.6.0" % Test
 
 libraryDependencies ++= Seq(
   "eu.timepit" %% "refined" % "0.9.9",
@@ -33,7 +40,7 @@ scalacOptions ++= Seq(
   "-Ywarn-numeric-widen",
   "-Ywarn-value-discard",
   "-Ywarn-unused",
-  //"-Xfatal-warnings", // Fail the compilation if there are any warnings. // TODO
+  //"-Xfatal-warnings", // Fail the compilation if there are any warnings. // TODO re-enable
   "-Xlint:adapted-args", // Warn if an argument list is modified to match the receiver.
   "-Xlint:by-name-right-associative", // By-name parameter of right associative operator.
   "-Xlint:delayedinit-select", // Selecting member of DelayedInit.
