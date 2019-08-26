@@ -1,7 +1,7 @@
 [![Build Status](https://travis-ci.org/carsten-langer/paper-computer.svg?branch=master)](https://travis-ci.org/carsten-langer/paper-computer)
 
 # paper-computer
-A functional Scala library implementation of a computer working with a sheet of paper, a pen and a set of items e.g. matches
+A _functional_ Scala library implementation of a computer working with a sheet of paper, a pen and a set of items e.g. matches
 (Streichholzcomputer / Papiercomputer), used for education in the 1980s.
 
 For background see
@@ -86,14 +86,14 @@ type ProgramExecution = (Program, Registers) => MorRegisters
 By convention the execution of a program starts at its lowest line number. Empty programs can be created,
 but cannot be executed.
 
-Execution is fully functional using tailrec so that no stack overflow occurs.
+Execution is fully _functional_ using tailrec so that no stack overflow occurs.
 
 ### Command Enhancements
 This implementation of the paper-computer adds 2 commands for convenience:
 
 | Command | Meaning |
 | --- | --- |
-| `Prg(program)` | Execute program _program_, starting with that program's lowest line number, and an initial registers state of this program's current registers state. If that program reaches its end via `Stp`, continue with the next line in this program using that program's  resulting registers state. While technically not needed to write programs, this addition allows for easier implementation of a library of pre-defined programs that can be plugged together. |
+| `Prg(program)` | Execute program _program_, starting with that program's lowest line number, and an initial registers state of this program's current registers state. If that program reaches its end via `Stp`, continue with the next line in this program using that program's  resulting registers state. While technically not needed to write programs, this addition allows for easier implementation of a library of pre-defined programs that can be plugged together, e.g. see the fibonacci calculation in the [Program Library](https://github.com/carsten-langer/paper-computer/blob/master/src/main/scala/papercomputer/ProgramLibrary.scala). |
 | `Sub(ln)` | Jump to line _ln_, but when the execution ends via `Stp`, continue with next line after this `Sub` in the program. While technically not needed to write programs, this simplifies calling a section of this program from different places and continuing from the different respective next lines. | 
 
 ## Example Usage
@@ -134,7 +134,7 @@ object demo {
         resultingRegisters <- ProgramExecution.execute(programAdditionR2PlusR3ToR1, initialRegisters)
         resultingR1 = resultingRegisters.registerValues(1L)
     } yield resultingR1
-    // Right(9)
+    // yields: Right(9)
 }
 ```
 
@@ -156,7 +156,7 @@ However, if the second register value is negative, this _while-repeat-loop_ will
 even more negative value farther away from zero. It may thus take an awful lot of time to decrement the second value
 through the whole value space to reach its lowest value, so that it can then wrap-around to the highest value and
 after further decrementing finally reach the zero value. At the same time the first register value will move through
-the whole value space in positive direction, wrap around from highest value to lowese value and continue to increment
+the whole value space in positive direction, wrap around from highest value to lowest value and continue to increment
 until the program stops.
  
 The end result will be correct, but the number of loop iterations may be

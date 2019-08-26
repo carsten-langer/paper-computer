@@ -4,8 +4,8 @@ import cats.data.StateT
 import cats.implicits._
 
 /**
-  *
-  * @param program The immutable Program of the currently active stack, will not change during runtime of this stack.
+  * @param config       The configuration of the linkage between Command and Registers.
+  * @param program      The immutable Program of the currently active stack, will not change during runtime of this stack.
   * @param stack        A stack to keep track of the next program and line numbers where to continue after a Stp.
   *                     Initially, this list is empty.
   *                     During execution of a Prg(subPrg), the current program and the line where to continue in the
@@ -20,7 +20,8 @@ import cats.implicits._
   *                     A None indicated that the program execution is finished.
   * @param registers    The registers in the state before the execution of the Command in currentLineO.
   */
-final case class ProgramState private (program: Program,
+final case class ProgramState private (config: ProgramStateConfig,
+                                       program: Program,
                                        stack: Stack,
                                        currentLineO: Option[LineNumber],
                                        registers: Registers) {
@@ -33,9 +34,16 @@ final case class ProgramState private (program: Program,
 
 object ProgramState {
   def apply(program: Program, registers: Registers): MorProgramState =
-    ProgramState(program, emptyStack, startLineO(program), registers)
+    apply(
+      ProgramStateConfig(RegistersOps.inc, RegistersOps.dec, RegistersOps.isz),
+      program,
+      emptyStack,
+      startLineO(program),
+      registers
+    )
 
-  def apply(program: Program,
+  def apply(config: ProgramStateConfig,
+            program: Program,
             stack: Stack,
             currentLineO: Option[LineNumber],
             registers: Registers): MorProgramState =
@@ -45,7 +53,7 @@ object ProgramState {
     else if (!checkStack(stack))
       Left(IllegalReferenceToNonExistingLineNumber)
     else
-      Right(new ProgramState(program, stack, currentLineO, registers))
+      Right(new ProgramState(config, program, stack, currentLineO, registers))
 
   /** ProgramState => Message or next ProgramState
     * If the current ProgramState's currentLineO is a Some,
@@ -54,21 +62,16 @@ object ProgramState {
     * If currentLineO is a None, this returns a failure message.
     * It needs the functions IncF, DecF and IszF as parameters.
     */
-  def next(incF: IncF,
-           decF: DecF,
-           iszF: IszF): ProgramState => MorProgramState =
-    nextProgramStateUnit(incF, decF, iszF).runS
-
-  def nextProgramStateUnit(incF: IncF,
-                           decF: DecF,
-                           iszF: IszF): StateT[Mor, ProgramState, Unit] =
-    nextProgramStateT[Unit](incF, decF, iszF)(_ => ())
+  def next: ProgramState => MorProgramState = nextProgramStateT(_ => ()).runS
 
   /** ProgramState => Message or Tuple2 of (next ProgramState, result of f on next ProgramState) */
-  def nextProgramStateT[T](incF: IncF, decF: DecF, iszF: IszF)(
-      f: ProgramState => T): StateT[Mor, ProgramState, T] =
+  def nextProgramStateT[T](f: ProgramState => T): StateT[Mor, ProgramState, T] =
     StateT { currentProgramState =>
+      val config = currentProgramState.config
       val program = currentProgramState.program
+      lazy val incF = currentProgramState.config.incF
+      lazy val decF = currentProgramState.config.decF
+      lazy val iszF = currentProgramState.config.iszF
       val stack = currentProgramState.stack
       val currentLineO = currentProgramState.currentLineO
       val registers = currentProgramState.registers
@@ -99,7 +102,7 @@ object ProgramState {
           newStack: Stack,
           newLineNumberO: Option[LineNumber],
           newRegisters: Registers = registers): MorProgramState =
-        ProgramState(newProgram, newStack, newLineNumberO, newRegisters)
+        ProgramState(config, newProgram, newStack, newLineNumberO, newRegisters)
 
       def prgSubNextProgramState(
           programToStack: Program,
@@ -180,5 +183,7 @@ object ProgramState {
 
   private def startLineO(program: Program): Option[LineNumber] =
     if (program.isEmpty) None else Some(program.keySet.minBy(_.value))
-
 }
+
+// The linkage between Command and Registers
+final case class ProgramStateConfig(incF: IncF, decF: DecF, iszF: IszF)

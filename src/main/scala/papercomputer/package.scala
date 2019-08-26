@@ -25,17 +25,21 @@ package object papercomputer {
   /** Register numbers are positive or 0. */
   type RegisterNumber = NonNegativeValue
   val minRegisterNumber: RegisterNumber = refineMV[NonNegative](0)
-  val maxRegisterNumber: RegisterNumber = refineV[NonNegative](maxValue).right.get
+  val maxRegisterNumber: RegisterNumber =
+    refineV[NonNegative](maxValue).right.get
 
   /** A Message Or Either type used for message/error propagation. */
   type Mor[T] = Either[Message, T]
   type MorBoolean = Mor[Boolean]
+  type MorRegisterNumber = Mor[RegisterNumber]
   type MorRegisters = Mor[Registers]
   type MorRegisterValue = Mor[RegisterValue]
   type MorProgramState = Mor[ProgramState]
 
   /** A data structure to map register number to register value.  */
   type RegisterValues = immutable.Map[RegisterNumber, RegisterValue]
+  def emptyRegisterValues: RegisterValues = Map.empty
+
   /** A factory from min register value, max register value and register values to a message or registers. */
   type RegistersFactory =
     (RegisterValue, RegisterValue, RegisterValues) => MorRegisters
@@ -58,6 +62,7 @@ package object papercomputer {
 
   /** In a program, each command has a line number. */
   type Program = immutable.Map[LineNumber, Command]
+  def emptyProgram: Program = Map.empty
 
   /** Executes a program on registers starting with the lowest line number. */
   type ProgramExecution = (Program, Registers) => MorRegisters

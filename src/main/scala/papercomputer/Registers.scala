@@ -26,47 +26,48 @@ object Registers {
     else
       Right(new Registers(minRegisterValue, maxRegisterValue, registerValues))
   }
+}
 
-  def isZero(registerNumber: RegisterNumber)(registers: Registers): MorBoolean =
-    registerValue(registerNumber)(registers).map(_ == 0)
+object RegistersOps {
+  val inc: IncF = (registerNumber: RegisterNumber) =>
+    (registers: Registers) =>
+      incDec(registerNumber,
+             registers,
+             valueToWrap = registers.maxRegisterValue,
+             wrappedValue = registers.minRegisterValue,
+             newValueF = (v: Value) => v + 1)
 
-  def inc(registersFactory: RegistersFactory)(registerNumber: RegisterNumber)(
-      registers: Registers): MorRegisters =
-    incDec(registersFactory,
-           registerNumber,
-           registers,
-           valueToWrap = registers.maxRegisterValue,
-           wrappedValue = registers.minRegisterValue,
-           newValueF = (v: Value) => v + 1)
+  val dec: DecF =
+    (registerNumber: RegisterNumber) =>
+      (registers: Registers) =>
+        incDec(registerNumber,
+               registers,
+               valueToWrap = registers.minRegisterValue,
+               wrappedValue = registers.maxRegisterValue,
+               newValueF = (v: Value) => v - 1)
 
-  def dec(registersFactory: RegistersFactory)(registerNumber: RegisterNumber)(
-      registers: Registers): MorRegisters =
-    incDec(registersFactory,
-           registerNumber,
-           registers,
-           valueToWrap = registers.minRegisterValue,
-           wrappedValue = registers.maxRegisterValue,
-           newValueF = (v: Value) => v - 1)
+  val isz: IszF = (registerNumber: RegisterNumber) =>
+    (registers: Registers) =>
+      registerValue(registerNumber, registers).map(_ == 0)
 
-  // TODO decide if Registers.registerValue shall be in public API, currently it is private
-  private def registerValue(registerNumber: RegisterNumber)(
-      registers: Registers): MorRegisterValue =
-    registers.registerValues
-      .get(registerNumber)
-      .toRight(IllegalAccessToNonExistingRegisterNumber)
-
-  private def incDec(registersFactory: RegistersFactory,
-                     registerNumber: RegisterNumber,
+  private def incDec(registerNumber: RegisterNumber,
                      registers: Registers,
                      valueToWrap: RegisterValue,
                      wrappedValue: RegisterValue,
                      newValueF: RegisterValue => RegisterValue): MorRegisters =
     for {
-      rv <- Registers.registerValue(registerNumber)(registers)
-      rvNew = if (rv == valueToWrap) wrappedValue else newValueF(rv)
+      oldRv <- registerValue(registerNumber, registers)
+      rvNew = if (oldRv == valueToWrap) wrappedValue else newValueF(oldRv)
       rvsNew = registers.registerValues.updated(registerNumber, rvNew)
-      rsNew <- registersFactory(registers.minRegisterValue,
-                                registers.maxRegisterValue,
-                                rvsNew)
+      rsNew <- Registers.apply(registers.minRegisterValue,
+                               registers.maxRegisterValue,
+                               rvsNew)
     } yield rsNew
+
+  private def registerValue(registerNumber: RegisterNumber,
+                            registers: Registers): MorRegisterValue =
+    registers.registerValues
+      .get(registerNumber)
+      .toRight(IllegalAccessToNonExistingRegisterNumber)
+
 }

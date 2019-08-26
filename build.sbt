@@ -1,6 +1,6 @@
 name := "paper-computer"
 
-version := "0.2"
+version := "0.3"
 
 // https://www.scala-lang.org/download/all.html
 scalaVersion := "2.12.9"
@@ -40,7 +40,7 @@ scalacOptions ++= Seq(
   "-Ywarn-numeric-widen",
   "-Ywarn-value-discard",
   "-Ywarn-unused",
-  //"-Xfatal-warnings", // Fail the compilation if there are any warnings. // TODO re-enable
+  "-Xfatal-warnings", // Fail the compilation if there are any warnings.
   "-Xlint:adapted-args", // Warn if an argument list is modified to match the receiver.
   "-Xlint:by-name-right-associative", // By-name parameter of right associative operator.
   "-Xlint:delayedinit-select", // Selecting member of DelayedInit.
@@ -57,5 +57,5 @@ scalacOptions ++= Seq(
   "-Xlint:stars-align", // Pattern sequence wildcard must align with sequence component.
   "-Xlint:type-parameter-shadow", // A local type parameter shadows a type already in scope.
   "-Xlint:unsound-match", // Pattern match may not be typesafe.
-  //"-Yrecursion:123" // TODO shall I allow type recursion?
+  //"-Yrecursion:123" // TODO maybe I need type recursion is needed in the future?
 )
