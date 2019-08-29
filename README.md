@@ -92,7 +92,7 @@ type ProgramExecution = (Program, Registers) => Mor[Registers]
 By convention the execution of a program starts at its lowest line number. Empty programs can be created,
 but cannot be executed.
 
-Execution is fully _functional_ using tailrec so that no stack overflow occurs.
+Execution is safe from stack overflows but may not end if you have an unconditional loop in your paper-computer program.
 
 ### Command Enhancements
 This implementation of the paper-computer adds 2 commands for convenience:

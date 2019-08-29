@@ -3,28 +3,31 @@ package papercomputer
 import cats.data.StateT
 import cats.implicits._
 
-import scala.annotation.tailrec
-
 object ProgramExecution {
-  lazy val execute: ProgramExecution =
+  lazy val execute: ProgramExecutionF =
     executeObserved(_ => (), ProgramState.next)
 
-  def executeObserved(beforeNextF: ProgramState => Unit,
+  def executeObserved(sideEffect: => ProgramState => Unit,
                       next: StateT[Mor, ProgramState, ProgramState] =
-                        ProgramState.next): ProgramExecution =
+                        ProgramState.next): ProgramExecutionF =
     (program: Program, registers: Registers) =>
-      nextTailRec(beforeNextF, next, ProgramState(program, registers))
+      toStream(ProgramState(program, registers), next)
+        .foldLeft[Mor[Registers]](Right(registers)) {
+          case (_, morPs) =>
+            for {
+              ps <- morPs
+              _ = sideEffect(ps)
+            } yield ps.registers
+      }
 
-  @tailrec
-  def nextTailRec(beforeNextF: ProgramState => Unit,
-                  next: StateT[Mor, ProgramState, ProgramState],
-                  morPs: Mor[ProgramState]): Mor[Registers] = {
-    morPs match {
-      case Left(message)                        => Left(message)
-      case Right(ps) if ps.currentLineO.isEmpty => Right(ps.registers)
-      case Right(ps) =>
-        beforeNextF(ps)
-        nextTailRec(beforeNextF, next, next.runS(ps))
+  def toStream(morPsPs: Mor[ProgramState],
+               next: StateT[Mor, ProgramState, ProgramState])
+    : Stream[Mor[ProgramState]] =
+    morPsPs match {
+      case Left(_) => Seq(morPsPs).toStream
+      case Right(ps) if ps.currentLineO.isEmpty =>
+        Seq(morPsPs).toStream
+      case Right(ps) => Right(ps) #:: toStream(next.runS(ps), next)
     }
-  }
+
 }

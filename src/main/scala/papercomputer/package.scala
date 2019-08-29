@@ -58,5 +58,5 @@ package object papercomputer {
   def emptyProgram: Program = Map.empty
 
   /** Executes a program on registers starting with the lowest line number. */
-  type ProgramExecution = (Program, Registers) => Mor[Registers]
+  type ProgramExecutionF = (Program, Registers) => Mor[Registers]
 }
