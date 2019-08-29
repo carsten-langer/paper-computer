@@ -60,12 +60,11 @@ object ProgramState {
     * this returns the ProgramState after execution of the currentLine's Command,
     * or a failure Message.
     * If currentLineO is a None, this returns a failure message.
-    * It needs the functions IncF, DecF and IszF as parameters.
     */
-  def next: ProgramState => Mor[ProgramState] = nextProgramStateT(_ => ()).runS
+  def next: ProgramState => Mor[ProgramState] = nextProgramStateT.runS
 
-  /** ProgramState => Message or Tuple2 of (next ProgramState, result of f on next ProgramState) */
-  def nextProgramStateT[T](f: ProgramState => T): StateT[Mor, ProgramState, T] =
+  /** ProgramState => Message or Tuple2 of (next ProgramState, original ProgramState) */
+  def nextProgramStateT: StateT[Mor, ProgramState, ProgramState] =
     StateT { currentProgramState =>
       val config = currentProgramState.config
       val program = currentProgramState.program
@@ -174,7 +173,7 @@ object ProgramState {
           case Some(Prg(subProgram))     => prg(subProgram)
           case Some(Sub(subLine))        => sub(subLine)
         }
-      } yield (newPs, f(newPs))
+      } yield (newPs, currentProgramState)
     }
 
   private def checkStack(stack: Stack): Boolean = stack.forall {
