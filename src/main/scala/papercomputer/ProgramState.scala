@@ -186,4 +186,4 @@ object ProgramState {
 }
 
 // The linkage between Command and Registers
-final case class ProgramStateConfig(incF: IncF, decF: DecF, iszF: IszF)
+final case class ProgramStateConfig(incF: IncDecF, decF: IncDecF, iszF: IszF)

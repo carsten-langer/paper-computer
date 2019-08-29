@@ -273,7 +273,7 @@ class ProgramStateTestSpec
             stack,
             oldRegisters,
             newRegisters) =>
-        val incF: IncF =
+        val incF: IncDecF =
           assertingIncDecF(registerNumber, oldRegisters, newRegisters)
         val config = ProgramStateConfig(incF, decF, iszF)
         val programState = newProgramState(config,
@@ -304,7 +304,7 @@ class ProgramStateTestSpec
             stack,
             oldRegisters,
             newRegisters) =>
-        val incF: IncF = _ => _ => Right(newRegisters)
+        val incF: IncDecF = _ => _ => Right(newRegisters)
         val config = ProgramStateConfig(incF, decF, iszF)
         val programState = newProgramState(config,
                                            program,
@@ -323,7 +323,7 @@ class ProgramStateTestSpec
            genStack,
            genRegisters) {
       case (decF, iszF, (program, currentLine), stack, oldRegisters) =>
-        val incF: IncF = _ => _ => Left(MessageDuringUnitTests)
+        val incF: IncDecF = _ => _ => Left(MessageDuringUnitTests)
         val config = ProgramStateConfig(incF, decF, iszF)
         val programState = newProgramState(config,
                                            program,
@@ -351,7 +351,7 @@ class ProgramStateTestSpec
             stack,
             oldRegisters,
             newRegisters) =>
-        val decF: DecF =
+        val decF: IncDecF =
           assertingIncDecF(registerNumber, oldRegisters, newRegisters)
         val config = ProgramStateConfig(incF, decF, iszF)
         val programState = newProgramState(config,
@@ -382,7 +382,7 @@ class ProgramStateTestSpec
             stack,
             oldRegisters,
             newRegisters) =>
-        val decF: DecF = _ => _ => Right(newRegisters)
+        val decF: IncDecF = _ => _ => Right(newRegisters)
         val config = ProgramStateConfig(incF, decF, iszF)
         val programState = newProgramState(config,
                                            program,
@@ -401,7 +401,7 @@ class ProgramStateTestSpec
            genStack,
            genRegisters) {
       case (incF, iszF, (program, currentLine), stack, oldRegisters) =>
-        val decF: DecF = _ => _ => Left(MessageDuringUnitTests)
+        val decF: IncDecF = _ => _ => Left(MessageDuringUnitTests)
         val config = ProgramStateConfig(incF, decF, iszF)
         val programState = newProgramState(config,
                                            program,

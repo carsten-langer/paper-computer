@@ -51,8 +51,6 @@ package object papercomputer {
 
   /** Functions to inc, dec, or test a given register number from given registers. */
   type IncDecF = RegisterNumber => Registers => Mor[Registers]
-  type IncF = IncDecF
-  type DecF = IncDecF
   type IszF = RegisterNumber => Registers => Mor[Boolean]
 
   /** In a program, each command has a line number. */

@@ -29,7 +29,7 @@ object Registers {
 }
 
 object RegistersOps {
-  val inc: IncF = (registerNumber: RegisterNumber) =>
+  val inc: IncDecF = (registerNumber: RegisterNumber) =>
     (registers: Registers) =>
       incDec(registerNumber,
              registers,
@@ -37,7 +37,7 @@ object RegistersOps {
              wrappedValue = registers.minRegisterValue,
              newValueF = (v: Value) => v + 1)
 
-  val dec: DecF =
+  val dec: IncDecF =
     (registerNumber: RegisterNumber) =>
       (registers: Registers) =>
         incDec(registerNumber,
