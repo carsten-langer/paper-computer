@@ -88,31 +88,31 @@ trait CommonFixtures {
       anyLine <- Gen.oneOf(program.keys.toSeq)
     } yield (program, anyLine)
 
-  lazy val genMorRegisters: Gen[MorRegisters] = Gen.frequency(
+  lazy val genMorRegisters: Gen[Mor[Registers]] = Gen.frequency(
     (1, Gen.const(Left(MessageDuringUnitTests))),
     (10, genRegisters.map(Right(_))))
 
   implicit lazy val coGenRegisters: Cogen[Registers] = Cogen(
     (rs: Registers) => rs.hashCode.toLong)
 
-  lazy val genRsToMorRs: Gen[Registers => MorRegisters] =
-    Gen.function1[Registers, MorRegisters](genMorRegisters)
+  lazy val genRsToMorRs: Gen[Registers => Mor[Registers]] =
+    Gen.function1[Registers, Mor[Registers]](genMorRegisters)
 
   implicit lazy val coGenRegisterNumber: Cogen[RegisterNumber] = Cogen(
     (rn: RegisterNumber) => rn.hashCode.toLong)
 
   lazy val genIncDecF: Gen[IncDecF] =
-    Gen.function1[RegisterNumber, Registers => MorRegisters](genRsToMorRs)
+    Gen.function1[RegisterNumber, Registers => Mor[Registers]](genRsToMorRs)
 
-  lazy val genMorBoolean: Gen[MorBoolean] = Gen.frequency(
+  lazy val genMorBoolean: Gen[Mor[Boolean]] = Gen.frequency(
     (1, Left(MessageDuringUnitTests)),
     (10, Arbitrary.arbBool.arbitrary.map(Right(_))))
 
-  lazy val genRsToMorB: Gen[Registers => MorBoolean] =
-    Gen.function1[Registers, MorBoolean](genMorBoolean)
+  lazy val genRsToMorB: Gen[Registers => Mor[Boolean]] =
+    Gen.function1[Registers, Mor[Boolean]](genMorBoolean)
 
   lazy val genIszF: Gen[IszF] =
-    Gen.function1[RegisterNumber, Registers => MorBoolean](genRsToMorB)
+    Gen.function1[RegisterNumber, Registers => Mor[Boolean]](genRsToMorB)
 
   lazy val genConfig: Gen[ProgramStateConfig] = for {
     incF <- genIncDecF

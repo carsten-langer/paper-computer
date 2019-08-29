@@ -116,7 +116,7 @@ class ProgramStateTestSpec
 
   it should "return correct state for empty program" in new Fixture {
     forAll(genRegisters) { registers =>
-      val morPs: MorProgramState = ProgramState(emptyProgram, registers)
+      val morPs: Mor[ProgramState] = ProgramState(emptyProgram, registers)
       val ps: ProgramState = morPs.right.value
       // config shall come from Registers functions
       // empty program shall be copied into the state
@@ -138,7 +138,7 @@ class ProgramStateTestSpec
 
     forAll(genNonEmptyProgram, genRegisters) { (program, registers) =>
       whenever(program.nonEmpty) {
-        val morPs: MorProgramState = ProgramState(program, registers)
+        val morPs: Mor[ProgramState] = ProgramState(program, registers)
         val ps: ProgramState = morPs.right.value
         // config shall come from Registers functions
         // program shall be copied into the state
@@ -165,7 +165,7 @@ class ProgramStateTestSpec
   it should "create correct state for empty startLine and empty stack" in new Fixture {
     forAll(genConfig, genProgram, genRegisters) {
       (config, program, registers) =>
-        val morPs: MorProgramState =
+        val morPs: Mor[ProgramState] =
           ProgramState(config, program, emptyStack, None, registers)
         val ps: ProgramState = morPs.right.value
         // program shall be copied into the state
@@ -179,7 +179,7 @@ class ProgramStateTestSpec
   it should "fail for empty startLine and non-empty stack" in new Fixture {
     forAll(genConfig, genNonEmptyProgram, genNonEmptyStack, genRegisters) {
       (config, program, nonEmptyStack, registers) =>
-        val morPs: MorProgramState =
+        val morPs: Mor[ProgramState] =
           ProgramState(config, program, nonEmptyStack, None, registers)
         morPs.left.value.shouldEqual(IllegalState)
     }
@@ -189,7 +189,7 @@ class ProgramStateTestSpec
     forAll(genConfig, genProgram, genLineNumber, genRegisters) {
       (config, program, startLine: LineNumber, registers) =>
         whenever(!program.contains(startLine)) {
-          val morPs: MorProgramState =
+          val morPs: Mor[ProgramState] =
             ProgramState(config,
                          program,
                          emptyStack,
@@ -213,7 +213,7 @@ class ProgramStateTestSpec
       case (config,
             (program, startLine: LineNumber, stack),
             registers: Registers) =>
-        val morPs: MorProgramState =
+        val morPs: Mor[ProgramState] =
           ProgramState(config, program, stack, Some(startLine), registers)
         morPs.left.value.shouldEqual(IllegalReferenceToNonExistingLineNumber)
     }
@@ -223,7 +223,7 @@ class ProgramStateTestSpec
     forAll(genConfig, genProgramAndAnyContainedLine, genStack, genRegisters) {
       case (config, (program, startLine: LineNumber), stack, registers) =>
         whenever(program.nonEmpty) {
-          val morPs: MorProgramState =
+          val morPs: Mor[ProgramState] =
             ProgramState(config, program, stack, Some(startLine), registers)
           val ps: ProgramState = morPs.right.value
           // program shall be copied into the state
@@ -252,7 +252,7 @@ class ProgramStateTestSpec
       } yield programState
 
     forAll(genPs) { programState =>
-      val morPs: MorProgramState =
+      val morPs: Mor[ProgramState] =
         ProgramState.next(programState)
       morPs.left.value.shouldEqual(CannotRunAFinishedProgram)
     }

@@ -36,7 +36,7 @@ class RegistersTestSpec
         // for each original registers, inc/dec each register number in turn
         // and check that only this register number was inc/dec'ed and all others are kept the same
         originalRs.registerValues.keys.foreach(rnUnderTest => {
-          val morNewRs: MorRegisters =
+          val morNewRs: Mor[Registers] =
             incDecF(rnUnderTest)(originalRs)
           val newRs: Registers = morNewRs.right.value
           newRs.minRegisterValue.shouldEqual(originalRs.minRegisterValue)
@@ -65,7 +65,7 @@ class RegistersTestSpec
       case (minRv: RegisterValue, maxRv: RegisterValue) =>
         whenever(minRv > 0 && minRv <= maxRv) {
           val rvs: RegisterValues = emptyRegisterValues
-          val mors: MorRegisters = Registers(minRv, maxRv, rvs)
+          val mors: Mor[Registers] = Registers(minRv, maxRv, rvs)
           mors.left.value
             .shouldEqual(MinRegisterValueMustBeLessOrEqualZero)
         }
@@ -82,7 +82,7 @@ class RegistersTestSpec
       case (minRv: RegisterValue, maxRv: RegisterValue) =>
         whenever(minRv <= maxRv && maxRv < 0) {
           val rvs: RegisterValues = emptyRegisterValues
-          val mors: MorRegisters = Registers(minRv, maxRv, rvs)
+          val mors: Mor[Registers] = Registers(minRv, maxRv, rvs)
           mors.left.value
             .shouldEqual(MaxRegisterValueMustBeGreaterOrEqualZero)
         }
@@ -100,7 +100,7 @@ class RegistersTestSpec
     forAll((gen, "minRv, maxRv, registerValues")) {
       case (minRv: RegisterValue, maxRv: RegisterValue, rvs: RegisterValues) =>
         whenever(rvs.values.exists(_ < minRv)) {
-          val mors: MorRegisters = Registers(minRv, maxRv, rvs)
+          val mors: Mor[Registers] = Registers(minRv, maxRv, rvs)
           mors.left.value
             .shouldEqual(RegisterValueMustNotBeSmallerThanMinRegisterValue)
         }
@@ -118,7 +118,7 @@ class RegistersTestSpec
     forAll((gen, "minRv, maxRv, registerValues")) {
       case (minRv: RegisterValue, maxRv: RegisterValue, rvs: RegisterValues) =>
         whenever(rvs.values.exists(_ > maxRv)) {
-          val mors: MorRegisters = Registers(minRv, maxRv, rvs)
+          val mors: Mor[Registers] = Registers(minRv, maxRv, rvs)
           mors.left.value
             .shouldEqual(RegisterValueMustNotBeGreaterThanMaxRegisterValue)
         }
@@ -130,7 +130,7 @@ class RegistersTestSpec
       (genMinMaxRegisterValueRegisterValues(0L),
        "minRv, maxRv, registerValues")) {
       case (minRv: RegisterValue, maxRv: RegisterValue, rvs: RegisterValues) =>
-        val mors: MorRegisters = Registers(minRv, maxRv, rvs)
+        val mors: Mor[Registers] = Registers(minRv, maxRv, rvs)
         val rs = mors.right.value // assert it is a Right(_) and ignore the values as they are tested in a different test
         rs.minRegisterValue.shouldEqual(minRv)
         rs.maxRegisterValue.shouldEqual(maxRv)

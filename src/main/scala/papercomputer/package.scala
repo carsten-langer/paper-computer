@@ -30,11 +30,6 @@ package object papercomputer {
 
   /** A Message Or Either type used for message/error propagation. */
   type Mor[T] = Either[Message, T]
-  type MorBoolean = Mor[Boolean]
-  type MorRegisterNumber = Mor[RegisterNumber]
-  type MorRegisters = Mor[Registers]
-  type MorRegisterValue = Mor[RegisterValue]
-  type MorProgramState = Mor[ProgramState]
 
   /** A data structure to map register number to register value.  */
   type RegisterValues = immutable.Map[RegisterNumber, RegisterValue]
@@ -42,7 +37,7 @@ package object papercomputer {
 
   /** A factory from min register value, max register value and register values to a message or registers. */
   type RegistersFactory =
-    (RegisterValue, RegisterValue, RegisterValues) => MorRegisters
+    (RegisterValue, RegisterValue, RegisterValues) => Mor[Registers]
 
   /** Program line numbers are positive > 0. */
   type LineNumber = Value Refined Positive
@@ -55,15 +50,15 @@ package object papercomputer {
   def emptyStack: Stack = List.empty
 
   /** Functions to inc, dec, or test a given register number from given registers. */
-  type IncDecF = RegisterNumber => Registers => MorRegisters
+  type IncDecF = RegisterNumber => Registers => Mor[Registers]
   type IncF = IncDecF
   type DecF = IncDecF
-  type IszF = RegisterNumber => Registers => MorBoolean
+  type IszF = RegisterNumber => Registers => Mor[Boolean]
 
   /** In a program, each command has a line number. */
   type Program = immutable.Map[LineNumber, Command]
   def emptyProgram: Program = Map.empty
 
   /** Executes a program on registers starting with the lowest line number. */
-  type ProgramExecution = (Program, Registers) => MorRegisters
+  type ProgramExecution = (Program, Registers) => Mor[Registers]
 }

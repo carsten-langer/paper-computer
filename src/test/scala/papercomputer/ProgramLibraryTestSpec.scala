@@ -56,14 +56,14 @@ class ProgramLibraryTestSpec
 
   it should "run programZeroR1 with expected result" in new Fixture {
 
-    val morRs: MorRegisters =
+    val morRs: Mor[Registers] =
       ProgramExecution.executeObserved(printRegisters)(programZeroR1,
                                                        registers45870)
     morRs.right.value.registerValues(1L).shouldEqual(0)
   }
 
   it should "run programAdditionR1plusR2toR1 with expected result" in new Fixture {
-    val morRs: MorRegisters = ProgramExecution
+    val morRs: Mor[Registers] = ProgramExecution
       .executeObserved(printRegisters)(
         ProgramLibrary.programAdditionR1plusR2toR1,
         registers45870)
@@ -71,7 +71,7 @@ class ProgramLibraryTestSpec
   }
 
   it should "run programAdditionR2plusR3toR1 with expected result" in new Fixture {
-    val morRs: MorRegisters =
+    val morRs: Mor[Registers] =
       ProgramExecution.executeObserved(printRegisters)(
         programAdditionR2plusR3toR1,
         registers45870)
@@ -79,7 +79,7 @@ class ProgramLibraryTestSpec
   }
 
   it should "run fibonacci with expected result" in new Fixture {
-    val morRs: MorRegisters =
+    val morRs: Mor[Registers] =
       ProgramExecution.executeObserved(printRegisters)(
         fibonacci(3L, 1L, 2L, 4L, 5L),
         registers45870)

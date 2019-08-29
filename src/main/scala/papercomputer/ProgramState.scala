@@ -33,7 +33,7 @@ final case class ProgramState private (config: ProgramStateConfig,
 }
 
 object ProgramState {
-  def apply(program: Program, registers: Registers): MorProgramState =
+  def apply(program: Program, registers: Registers): Mor[ProgramState] =
     apply(
       ProgramStateConfig(RegistersOps.inc, RegistersOps.dec, RegistersOps.isz),
       program,
@@ -46,7 +46,7 @@ object ProgramState {
             program: Program,
             stack: Stack,
             currentLineO: Option[LineNumber],
-            registers: Registers): MorProgramState =
+            registers: Registers): Mor[ProgramState] =
     if (currentLineO.isEmpty && stack.nonEmpty) Left(IllegalState)
     else if (!currentLineO.forall(program.contains))
       Left(StartLineNotFoundInProgram)
@@ -62,7 +62,7 @@ object ProgramState {
     * If currentLineO is a None, this returns a failure message.
     * It needs the functions IncF, DecF and IszF as parameters.
     */
-  def next: ProgramState => MorProgramState = nextProgramStateT(_ => ()).runS
+  def next: ProgramState => Mor[ProgramState] = nextProgramStateT(_ => ()).runS
 
   /** ProgramState => Message or Tuple2 of (next ProgramState, result of f on next ProgramState) */
   def nextProgramStateT[T](f: ProgramState => T): StateT[Mor, ProgramState, T] =
@@ -88,26 +88,26 @@ object ProgramState {
         else Left(NoNextLinenNumberFoundInProgram)
       }
 
-      def continueWithNextLine(newRegisters: Registers): MorProgramState =
+      def continueWithNextLine(newRegisters: Registers): Mor[ProgramState] =
         nextLineNumberFromCurrentLine.flatMap(ln =>
           continueWithLine(ln, newRegisters))
 
       def continueWithLine(
           newLineNumber: LineNumber,
-          newRegisters: Registers = registers): MorProgramState =
+          newRegisters: Registers = registers): Mor[ProgramState] =
         continueWithProgram(program, stack, Some(newLineNumber), newRegisters)
 
       def continueWithProgram(
           newProgram: Program,
           newStack: Stack,
           newLineNumberO: Option[LineNumber],
-          newRegisters: Registers = registers): MorProgramState =
+          newRegisters: Registers = registers): Mor[ProgramState] =
         ProgramState(config, newProgram, newStack, newLineNumberO, newRegisters)
 
       def prgSubNextProgramState(
           programToStack: Program,
           programToExecute: Program,
-          newCurrentLineO: Option[LineNumber]): MorProgramState =
+          newCurrentLineO: Option[LineNumber]): Mor[ProgramState] =
         for {
           nextLine <- nextLineNumberFromCurrentLine
           newStack = (programToStack, nextLine) +: stack
@@ -117,14 +117,14 @@ object ProgramState {
         } yield programState
 
       def incDec(incDecF: IncDecF,
-                 registerNumber: RegisterNumber): MorProgramState =
+                 registerNumber: RegisterNumber): Mor[ProgramState] =
         incDecF(registerNumber)(registers).flatMap(continueWithNextLine)
 
-      def jmp(jmpLine: LineNumber): MorProgramState =
+      def jmp(jmpLine: LineNumber): Mor[ProgramState] =
         if (program.contains(jmpLine)) continueWithLine(jmpLine)
         else Left(IllegalReferenceToNonExistingLineNumber)
 
-      def isz(registerNumber: RegisterNumber): MorProgramState =
+      def isz(registerNumber: RegisterNumber): Mor[ProgramState] =
         for {
           zero <- iszF(registerNumber)(registers)
           sameOrFirstNextLine <- if (zero) nextLineNumberFromCurrentLine
@@ -134,7 +134,7 @@ object ProgramState {
           programState <- continueWithLine(firstOrSecondNextLine)
         } yield programState
 
-      def stp(): MorProgramState = {
+      def stp(): Mor[ProgramState] = {
         val (newProgram, newCurrentLineO) = stack
           .map({ case (program, currentLine) => (program, Some(currentLine)) })
           .headOption
@@ -146,7 +146,7 @@ object ProgramState {
       // Prg first checks if a next line is available and only if so continues with the sub program,
       // That is: if there is no next line, the subPrg is not executed
       // If the subprogram is empty, it is skipped
-      def prg(subProgram: Program): MorProgramState =
+      def prg(subProgram: Program): Mor[ProgramState] =
         if (subProgram.isEmpty) continueWithNextLine(registers)
         else
           prgSubNextProgramState(programToStack = program,
@@ -155,7 +155,7 @@ object ProgramState {
 
       // Sub first checks if a next line is available and only if so continues with the sub program,
       // That is: if there is no next line, the sub is not executed
-      def sub(subLine: LineNumber): MorProgramState =
+      def sub(subLine: LineNumber): Mor[ProgramState] =
         if (!program.contains(subLine))
           Left(IllegalReferenceToNonExistingLineNumber)
         else

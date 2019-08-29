@@ -14,7 +14,7 @@ object Registers {
   // Registers.apply() only works if apply is defined as a normal def with parameters.
   def apply(minRegisterValue: RegisterValue,
             maxRegisterValue: RegisterValue,
-            registerValues: RegisterValues): MorRegisters = {
+            registerValues: RegisterValues): Mor[Registers] = {
     if (minRegisterValue > 0)
       Left(MinRegisterValueMustBeLessOrEqualZero)
     else if (maxRegisterValue < 0)
@@ -54,7 +54,7 @@ object RegistersOps {
                      registers: Registers,
                      valueToWrap: RegisterValue,
                      wrappedValue: RegisterValue,
-                     newValueF: RegisterValue => RegisterValue): MorRegisters =
+                     newValueF: RegisterValue => RegisterValue): Mor[Registers] =
     for {
       oldRv <- registerValue(registerNumber, registers)
       rvNew = if (oldRv == valueToWrap) wrappedValue else newValueF(oldRv)
@@ -65,7 +65,7 @@ object RegistersOps {
     } yield rsNew
 
   private def registerValue(registerNumber: RegisterNumber,
-                            registers: Registers): MorRegisterValue =
+                            registers: Registers): Mor[RegisterValue] =
     registers.registerValues
       .get(registerNumber)
       .toRight(IllegalAccessToNonExistingRegisterNumber)

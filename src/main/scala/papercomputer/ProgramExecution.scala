@@ -7,15 +7,15 @@ object ProgramExecution {
     executeObserved(_ => (), ProgramState.next)
 
   def executeObserved(beforeNextF: ProgramState => Unit,
-                      next: ProgramState => MorProgramState = ProgramState.next)
+                      next: ProgramState => Mor[ProgramState] = ProgramState.next)
     : ProgramExecution =
     (program: Program, registers: Registers) =>
       nextTailRec(beforeNextF, next, ProgramState(program, registers))
 
   @tailrec
   def nextTailRec(beforeNextF: ProgramState => Unit,
-                  next: ProgramState => MorProgramState,
-                  morPs: MorProgramState): MorRegisters = {
+                  next: ProgramState => Mor[ProgramState],
+                  morPs: Mor[ProgramState]): Mor[Registers] = {
     morPs match {
       case Left(message)                        => Left(message)
       case Right(ps) if ps.currentLineO.isEmpty => Right(ps.registers)

@@ -17,7 +17,7 @@ class ProgramExecutionTestSpec
     lazy val beforeNextShouldNotBeCalled: ProgramState => Unit = _ =>
       Assertions.fail("beforeNext should not be called")
 
-    lazy val nextShouldNotBeCalled: ProgramState => MorProgramState = _ =>
+    lazy val nextShouldNotBeCalled: ProgramState => Mor[ProgramState] = _ =>
       Assertions.fail(" next should not be called")
 
     val genProgramState: Gen[ProgramState] = for {
@@ -29,7 +29,7 @@ class ProgramExecutionTestSpec
   behavior of "ProgramExecution.nextTailRec"
 
   it should "fail for Left as input" in new Fixture {
-    val morRegisters: MorRegisters = ProgramExecution
+    val morRegisters: Mor[Registers] = ProgramExecution
       .nextTailRec(beforeNextShouldNotBeCalled,
                    nextShouldNotBeCalled,
                    Left(MessageDuringUnitTests))
@@ -41,7 +41,7 @@ class ProgramExecutionTestSpec
   it should "return correct result for Right(ended program state) as input" in new Fixture {
     forAll(genRegisters) { registers: Registers =>
       val morLastPs = ProgramState(emptyProgram, registers)
-      val morRegisters: MorRegisters = ProgramExecution
+      val morRegisters: Mor[Registers] = ProgramExecution
         .nextTailRec(beforeNextShouldNotBeCalled,
                      nextShouldNotBeCalled,
                      morLastPs)
@@ -55,7 +55,7 @@ class ProgramExecutionTestSpec
         val _ = ps.shouldEqual(psBefore)
       }
       val morLastPs = ProgramState(emptyProgram, registers)
-      def next(ps: ProgramState): MorProgramState = {
+      def next(ps: ProgramState): Mor[ProgramState] = {
         ps.shouldEqual(psBefore)
         morLastPs
       }
@@ -72,7 +72,7 @@ class ProgramExecutionTestSpec
         val _ = ps.shouldEqual(psBefore)
       }
       val morLastPs = Left(MessageDuringUnitTests)
-      def next(ps: ProgramState): MorProgramState = {
+      def next(ps: ProgramState): Mor[ProgramState] = {
         ps.shouldEqual(psBefore)
         morLastPs
       }

@@ -67,20 +67,26 @@ type Program = immutable.Map[LineNumber, Command]
 ### Error Handling
 Throughout this library errors are represented by type `Message`. Potentially failing functions return an 
 `Either[Message, T]` with `T` the successful return type. Examples for failure are trying to access a non existing
-register or jumping to a non existing program line. For convenience, these `Either` types have type aliases, e.g.:
+register or jumping to a non existing program line. The whole library basically work in the effect of `Mor[_]`:
+
+```scala
+sealed trait Message
+case object MinRegisterValueMustBeLessOrEqualZero extends Message
+...
+```
+
+and 
 
 ```scala
 type Mor[T] = Either[Message, T]
-type MorRegisterValue = Mor[RegisterValue]
-type MorRegisters = Mor[Registers]
 ```
 
 ### Program Execution
 A program execution takes a program and an initial registers state and returns either the resulting registers state
-at the end of the program, or an error message, e.g. `IllegalAccessToNonExistingRegisterNumber`.
+at the end of the program, or an error `Message`, e.g. `IllegalAccessToNonExistingRegisterNumber`.
 
 ```scala
-type ProgramExecution = (Program, Registers) => MorRegisters
+type ProgramExecution = (Program, Registers) => Mor[Registers]
 ```
 
 By convention the execution of a program starts at its lowest line number. Empty programs can be created,
@@ -125,7 +131,7 @@ object demo {
         )
 
     // use arbitrary min/max values just to show we can!
-    val morRegisters: MorRegisters = Registers(minRegisterValue = -21, maxRegisterValue = 42L,
+    val morRegisters: Mor[Registers] = Registers(minRegisterValue = -21, maxRegisterValue = 42L,
           registerValues = Map((1L, 42L), (2L, 4L), (3L, 5L))
         )
     
