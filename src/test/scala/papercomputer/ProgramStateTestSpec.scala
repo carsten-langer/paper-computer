@@ -253,7 +253,7 @@ class ProgramStateTestSpec
 
     forAll(genPs) { programState =>
       val morPs: Mor[ProgramState] =
-        ProgramState.next(programState)
+        ProgramState.next.runS(programState)
       morPs.left.value.shouldEqual(CannotRunAFinishedProgram)
     }
   }
@@ -281,7 +281,7 @@ class ProgramStateTestSpec
                                            stack,
                                            Some(currentLine),
                                            oldRegisters)
-        val morPs = ProgramState.next(programState)
+        val morPs = ProgramState.next.runS(programState)
         val nextProgramState: ProgramState = morPs.right.value
         // current line shall be firstNextLine
         // registers shall be updated
@@ -311,7 +311,7 @@ class ProgramStateTestSpec
                                            stack,
                                            Some(currentLine),
                                            oldRegisters)
-        val morPs = ProgramState.next(programState)
+        val morPs = ProgramState.next.runS(programState)
         morPs.left.value.shouldEqual(NoNextLinenNumberFoundInProgram)
     }
   }
@@ -330,7 +330,7 @@ class ProgramStateTestSpec
                                            stack,
                                            Some(currentLine),
                                            oldRegisters)
-        val morPs = ProgramState.next(programState)
+        val morPs = ProgramState.next.runS(programState)
         morPs.left.value.shouldEqual(MessageDuringUnitTests)
     }
   }
@@ -359,7 +359,7 @@ class ProgramStateTestSpec
                                            stack,
                                            Some(currentLine),
                                            oldRegisters)
-        val morPs = ProgramState.next(programState)
+        val morPs = ProgramState.next.runS(programState)
         val nextProgramState: ProgramState = morPs.right.value
         // current line shall be firstNextLine
         // registers shall be updated
@@ -389,7 +389,7 @@ class ProgramStateTestSpec
                                            stack,
                                            Some(currentLine),
                                            oldRegisters)
-        val morPs = ProgramState.next(programState)
+        val morPs = ProgramState.next.runS(programState)
         morPs.left.value.shouldEqual(NoNextLinenNumberFoundInProgram)
     }
   }
@@ -408,7 +408,7 @@ class ProgramStateTestSpec
                                            stack,
                                            Some(currentLine),
                                            oldRegisters)
-        val morPs = ProgramState.next(programState)
+        val morPs = ProgramState.next.runS(programState)
         morPs.left.value.shouldEqual(MessageDuringUnitTests)
     }
   }
@@ -425,7 +425,7 @@ class ProgramStateTestSpec
 
     forAll(genProgramStateForJmpOK) {
       case (programState, jmpLine) =>
-        val morPs = ProgramState.next(programState)
+        val morPs = ProgramState.next.runS(programState)
         val newProgramState: ProgramState = morPs.right.value
         // current line shall be jmpLine
         assertProgramState(programState)(newProgramState,
@@ -443,7 +443,7 @@ class ProgramStateTestSpec
       } yield programState
 
     forAll(genProgramStateForJmpNOK) { programState =>
-      val morPs = ProgramState.next(programState)
+      val morPs = ProgramState.next.runS(programState)
       morPs.left.value.shouldEqual(IllegalReferenceToNonExistingLineNumber)
     }
   }
@@ -479,7 +479,7 @@ class ProgramStateTestSpec
         val config = ProgramStateConfig(incF, decF, iszF)
         val programState =
           newProgramState(config, program, stack, Some(currentLine), registers)
-        val morPs = ProgramState.next(programState)
+        val morPs = ProgramState.next.runS(programState)
         val nextProgramState: ProgramState = morPs.right.value
         // current line shall be secondNextLine
         assertProgramState(programState)(nextProgramState,
@@ -507,7 +507,7 @@ class ProgramStateTestSpec
         val config = ProgramStateConfig(incF, decF, iszF)
         val programState =
           newProgramState(config, program, stack, Some(currentLine), registers)
-        val morPs = ProgramState.next(programState)
+        val morPs = ProgramState.next.runS(programState)
         morPs.left.value.shouldEqual(NoNextLinenNumberFoundInProgram)
     }
   }
@@ -534,7 +534,7 @@ class ProgramStateTestSpec
         val config = ProgramStateConfig(incF, decF, iszF)
         val programState =
           newProgramState(config, program, stack, Some(currentLine), registers)
-        val morPs = ProgramState.next(programState)
+        val morPs = ProgramState.next.runS(programState)
         val nextProgramState: ProgramState = morPs.right.value
         // current line shall be firstNextLine
         assertProgramState(programState)(nextProgramState,
@@ -559,7 +559,7 @@ class ProgramStateTestSpec
         val config = ProgramStateConfig(incF, decF, iszF)
         val programState =
           newProgramState(config, program, stack, Some(currentLine), registers)
-        val morPs = ProgramState.next(programState)
+        val morPs = ProgramState.next.runS(programState)
         morPs.left.value.shouldEqual(NoNextLinenNumberFoundInProgram)
     }
   }
@@ -581,7 +581,7 @@ class ProgramStateTestSpec
         val config = ProgramStateConfig(incF, decF, iszF)
         val programState =
           newProgramState(config, program, stack, Some(currentLine), registers)
-        val morPs = ProgramState.next(programState)
+        val morPs = ProgramState.next.runS(programState)
         morPs.left.value.shouldEqual(MessageDuringUnitTests)
     }
   }
@@ -596,7 +596,7 @@ class ProgramStateTestSpec
     } yield programState
 
     forAll(genProgramStateForStp) { programState =>
-      val morPs = ProgramState.next(programState)
+      val morPs = ProgramState.next.runS(programState)
       val newProgramState: ProgramState = morPs.right.value
       // current line shall be None
       assertProgramState(programState)(newProgramState, newCurrentLineO = None)
@@ -612,7 +612,7 @@ class ProgramStateTestSpec
     } yield programState
 
     forAll(genProgramStateForStp) { programState =>
-      val morPs = ProgramState.next(programState)
+      val morPs = ProgramState.next.runS(programState)
       val newProgramState: ProgramState = morPs.right.value
       // stack shall be the tail of the original stack
       // current program and current line shall come from the head of the original stack
@@ -637,7 +637,7 @@ class ProgramStateTestSpec
 
     forAll(genProgramStateForSubOK) {
       case (programState, subLine, firstNextLine) =>
-        val morPs = ProgramState.next(programState)
+        val morPs = ProgramState.next.runS(programState)
         val newProgramState: ProgramState = morPs.right.value
         // new current line shall be subLine
         // new stack stall be old stack with (currentProgram, firstNextLine) prepended
@@ -657,7 +657,7 @@ class ProgramStateTestSpec
     } yield programState
 
     forAll(genProgramStateForSubNoNextLine) { programState =>
-      val morPs = ProgramState.next(programState)
+      val morPs = ProgramState.next.runS(programState)
       morPs.left.value.shouldEqual(NoNextLinenNumberFoundInProgram)
     }
   }
@@ -671,7 +671,7 @@ class ProgramStateTestSpec
     } yield programState
 
     forAll(genProgramStateForSubNoNextLine) { programState =>
-      val morPs = ProgramState.next(programState)
+      val morPs = ProgramState.next.runS(programState)
       morPs.left.value.shouldEqual(IllegalReferenceToNonExistingLineNumber)
     }
   }
@@ -690,7 +690,7 @@ class ProgramStateTestSpec
 
     forAll(genProgramStateForNonEmptyPrg) {
       case (programState, subProgram, firstNextLine) =>
-        val morPs = ProgramState.next(programState)
+        val morPs = ProgramState.next.runS(programState)
         val newProgramState: ProgramState = morPs.right.value
         // new program shall be subProgram
         // new stack stall be old stack with old program and firstNextLine prepended
@@ -716,7 +716,7 @@ class ProgramStateTestSpec
 
     forAll(genProgramStateForEmptyPrg) {
       case (programState, firstNextLine) =>
-        val morPs = ProgramState.next(programState)
+        val morPs = ProgramState.next.runS(programState)
         val newProgramState: ProgramState = morPs.right.value
         // new program shall be subProgram
         // new stack stall be old stack with old program and firstNextLine prepended
@@ -734,7 +734,7 @@ class ProgramStateTestSpec
     } yield programState
 
     forAll(genProgramStateForPrgNoNextLine) { programState =>
-      val morPs = ProgramState.next(programState)
+      val morPs = ProgramState.next.runS(programState)
       morPs.left.value.shouldEqual(NoNextLinenNumberFoundInProgram)
     }
   }

@@ -55,16 +55,13 @@ object ProgramState {
     else
       Right(new ProgramState(config, program, stack, currentLineO, registers))
 
-  /** ProgramState => Message or next ProgramState
+  /** ProgramState => Message or Tuple2 of (next ProgramState, original ProgramState)
     * If the current ProgramState's currentLineO is a Some,
     * this returns the ProgramState after execution of the currentLine's Command,
     * or a failure Message.
     * If currentLineO is a None, this returns a failure message.
     */
-  def next: ProgramState => Mor[ProgramState] = nextProgramStateT.runS
-
-  /** ProgramState => Message or Tuple2 of (next ProgramState, original ProgramState) */
-  def nextProgramStateT: StateT[Mor, ProgramState, ProgramState] =
+  def next: StateT[Mor, ProgramState, ProgramState] =
     StateT { currentProgramState =>
       val config = currentProgramState.config
       val program = currentProgramState.program
