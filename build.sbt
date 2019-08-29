@@ -1,6 +1,6 @@
 name := "paper-computer"
 
-version := "0.3"
+version := "0.4"
 
 // https://www.scala-lang.org/download/all.html
 scalaVersion := "2.12.9"
