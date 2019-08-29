@@ -10,8 +10,8 @@ object ProgramExecution {
     executeObserved(_ => (), ProgramState.next)
 
   def executeObserved(beforeNextF: ProgramState => Unit,
-                      next: StateT[Mor, ProgramState, ProgramState] = ProgramState.next)
-    : ProgramExecution =
+                      next: StateT[Mor, ProgramState, ProgramState] =
+                        ProgramState.next): ProgramExecution =
     (program: Program, registers: Registers) =>
       nextTailRec(beforeNextF, next, ProgramState(program, registers))
 

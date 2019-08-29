@@ -3,7 +3,10 @@ package papercomputer
 import cats.data.StateT
 import cats.implicits._
 import org.scalacheck.Gen
-import org.scalatest.EitherValues.{convertLeftProjectionToValuable, convertRightProjectionToValuable}
+import org.scalatest.EitherValues.{
+  convertLeftProjectionToValuable,
+  convertRightProjectionToValuable
+}
 import org.scalatest.{Assertions, FlatSpec, Matchers}
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
 
@@ -16,8 +19,9 @@ class ProgramExecutionTestSpec
     lazy val beforeNextShouldNotBeCalled: ProgramState => Unit = _ =>
       Assertions.fail("beforeNext should not be called")
 
-    lazy val nextShouldNotBeCalled: StateT[Mor, ProgramState, ProgramState] = StateT[Mor, ProgramState, ProgramState](_ =>
-      Assertions.fail(" next should not be called"))
+    lazy val nextShouldNotBeCalled: StateT[Mor, ProgramState, ProgramState] =
+      StateT[Mor, ProgramState, ProgramState](_ =>
+        Assertions.fail(" next should not be called"))
 
     val genProgramState: Gen[ProgramState] = for {
       (program, currentLine) <- genProgramAndAnyContainedLine
@@ -54,10 +58,11 @@ class ProgramExecutionTestSpec
         val _ = ps.shouldEqual(psBefore)
       }
       val morLastPs = ProgramState(emptyProgram, registers)
-      val next: StateT[Mor, ProgramState, ProgramState] = StateT[Mor, ProgramState, ProgramState](ps => {
-        ps.shouldEqual(psBefore)
-        morLastPs.map((_, ps))
-      })
+      val next: StateT[Mor, ProgramState, ProgramState] =
+        StateT[Mor, ProgramState, ProgramState](ps => {
+          ps.shouldEqual(psBefore)
+          morLastPs.map((_, ps))
+        })
       val morRegisters = ProgramExecution
         .nextTailRec(beforeNext, next, Right(psBefore))
       morRegisters.right.value
@@ -71,10 +76,11 @@ class ProgramExecutionTestSpec
         val _ = ps.shouldEqual(psBefore)
       }
       val morLastPs = Left(MessageDuringUnitTests)
-      val next: StateT[Mor, ProgramState, ProgramState] = StateT[Mor, ProgramState, ProgramState](ps => {
-        ps.shouldEqual(psBefore)
-        morLastPs
-      })
+      val next: StateT[Mor, ProgramState, ProgramState] =
+        StateT[Mor, ProgramState, ProgramState](ps => {
+          ps.shouldEqual(psBefore)
+          morLastPs
+        })
       val morRegisters = ProgramExecution
         .nextTailRec(beforeNext, next, Right(psBefore))
       morRegisters.left.value

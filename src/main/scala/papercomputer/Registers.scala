@@ -50,11 +50,12 @@ object RegistersOps {
     (registers: Registers) =>
       registerValue(registerNumber, registers).map(_ == 0)
 
-  private def incDec(registerNumber: RegisterNumber,
-                     registers: Registers,
-                     valueToWrap: RegisterValue,
-                     wrappedValue: RegisterValue,
-                     newValueF: RegisterValue => RegisterValue): Mor[Registers] =
+  private def incDec(
+      registerNumber: RegisterNumber,
+      registers: Registers,
+      valueToWrap: RegisterValue,
+      wrappedValue: RegisterValue,
+      newValueF: RegisterValue => RegisterValue): Mor[Registers] =
     for {
       oldRv <- registerValue(registerNumber, registers)
       rvNew = if (oldRv == valueToWrap) wrappedValue else newValueF(oldRv)
