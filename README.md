@@ -30,13 +30,14 @@ val maxValue: Value = Long.MaxValue
 ```
 
 ###  Registers
-We have:
+There is:
 ```scala
 type NonNegativeValue = Value Refined NonNegative
 type RegisterNumber = NonNegativeValue
 type RegisterValue = Value
 type RegisterValues = immutable.Map[RegisterNumber, RegisterValue]
-class Registers (minRegisterValue: RegisterValue, maxRegisterValue: RegisterValue, registerValues: RegisterValues)
+case class RegistersConfig(minRegisterValue: RegisterValue, maxRegisterValue: RegisterValue, registerValues: RegisterValues)
+case class Registers(minRegisterValue: RegisterValue, maxRegisterValue: RegisterValue, registerValues: RegisterValues)
 ```
 That is: `Registers` holds a map from `RegisterNumber` to `RegisterValue`.
 The `minRegisterValue` and `maxRegisterValue` allow to simulate in the paper computer various real-world architectures,
@@ -44,7 +45,8 @@ e.g. signed 8-bit registers with a value range from -128 to 127,
 or unsigned 16-bit registers with a value range from 0 to 65,535, including wrap-around.
 For example, incrementing a signed 8-bit register with value 127 results in a new value of -128, like in real world.
 
-The creation of `Registers` is implemented such that no illegal state can be represented.  
+A `Registers` is actually created from a `RegistersConfig`, which has the same structure. However, `Registers` creation
+guarantees that no illegal state can be represented, while `RegistersConfig` is unchecked.  
 
 ### Original Commands
 The original paper-computer knows 5 commands:
@@ -82,17 +84,31 @@ type Mor[T] = Either[Message, T]
 ```
 
 ### Program Execution
-A program execution takes a program and an initial registers state and returns either the resulting registers state
+
+#### Default execution
+A default program execution takes a program and an initial registers state and returns either the resulting registers state
 at the end of the program, or an error `Message`, e.g. `IllegalAccessToNonExistingRegisterNumber`.
 
 ```scala
-type ProgramExecution = (Program, Registers) => Mor[Registers]
+class RegistersConfig(minRegisterValue: RegisterValue, maxRegisterValue: RegisterValue, registerValues: RegisterValues)
+type ProgramExecutionF = (Program, RegistersConfig) => Mor[Registers]
 ```
+In detail:
 
-By convention the execution of a program starts at its lowest line number. Empty programs can be created,
-but cannot be executed.
+* Registers are build from a registers configuration.
+* Building the registers will fail with a message for an illegal registers configuration.
+* By convention the execution of a program starts at its lowest line number.
+* Empty programs can be created, but cannot be executed.
+* Executing the program may fail with a message.
+* Program execution may be infinite if the program contains a loop.
+* If no failure occurs and the program finishes, the final registers are returned.
 
 Execution is safe from stack overflows but may not end if you have an unconditional loop in your paper-computer program.
+
+#### Execution stream
+Under the hood, execution builds a `Stream` of `ProgramState`s. Execution can also be effectful and yielding any other result which can be derived from `ProgramState`.
+See the example usage below for an example of interleaving an `IO` effect for printing out each intermediate step.
+For more details on hooking into the `Stream` see the source code of `ProgramState` and `ProgramExecution`. 
 
 ### Command Enhancements
 This implementation of the paper-computer adds 2 commands for convenience:
@@ -106,41 +122,50 @@ This implementation of the paper-computer adds 2 commands for convenience:
 The following program adds up the values in register 2 and register 3 and returns the result in register 1, thereby
 destroying the original values in registers 1, 2 and 3.
 ```scala
-import papercomputer._
-import eu.timepit.refined.auto._
-
 object demo {
-    val programAdditionR2PlusR3ToR1: Program = Map(
-          (10L, Isz(1L)),
-          (20L, Jmp(40L)),
-          (30L, Jmp(60L)),
-          (40L, Dec(1L)),
-          (50L, Jmp(10L)),
-          (60L, Isz(2L)),
-          (70L, Jmp(90L)),
-          (80L, Jmp(120L)),
-          (90L, Dec(2L)),
-          (100L, Inc(1L)),
-          (110L, Jmp(60L)),
-          (120L, Isz(3L)),
-          (130L, Jmp(150L)),
-          (140L, Stp),
-          (150L, Dec(3L)),
-          (160L, Inc(1L)),
-          (170L, Jmp(120L))
-        )
+  val programAdditionR2PlusR3ToR1: Program = Map(
+    (10L, Isz(1L)),
+    (20L, Jmp(40L)),
+    (30L, Jmp(60L)),
+    (40L, Dec(1L)),
+    (50L, Jmp(10L)),
+    (60L, Isz(2L)),
+    (70L, Jmp(90L)),
+    (80L, Jmp(120L)),
+    (90L, Dec(2L)),
+    (100L, Inc(1L)),
+    (110L, Jmp(60L)),
+    (120L, Isz(3L)),
+    (130L, Jmp(150L)),
+    (140L, Stp),
+    (150L, Dec(3L)),
+    (160L, Inc(1L)),
+    (170L, Jmp(120L))
+  )
 
-    // use arbitrary min/max values just to show we can!
-    val morRegisters: Mor[Registers] = Registers(minRegisterValue = -21, maxRegisterValue = 42L,
-          registerValues = Map((1L, 42L), (2L, 4L), (3L, 5L))
-        )
-    
-    val result: MorRegisterValue = for {
-        initialRegisters <- morRegisters
-        resultingRegisters <- ProgramExecution.execute(programAdditionR2PlusR3ToR1, initialRegisters)
-        resultingR1 = resultingRegisters.registerValues(1L)
-    } yield resultingR1
-    // yields: Right(9)
+  // use arbitrary min/max values just to show we can!
+  val registersConfig: RegistersConfig = RegistersConfig(minRegisterValue = -21, maxRegisterValue = 42L,
+    registerValues = Map((1L, 42L), (2L, 4L), (3L, 5L)))
+
+  val result: Mor[RegisterValue] = for {
+    resultingRegisters <- ProgramExecution.execute(programAdditionR2PlusR3ToR1, registersConfig)
+    resultingR1 = resultingRegisters.registerValues(1L)
+  } yield resultingR1
+  // yields: Right(9)
+
+  val liftAndMap: Mor[ProgramState] => IO[Mor[Registers]] = morPs => IO {
+    println(morPs)
+    morPs.map(_.registers)
+  }
+
+  val resultWithObservation: IO[Mor[Registers]] =
+    ProgramExecution.execute(programAdditionR2PlusR3ToR1, registersConfig, liftAndMap)
+  resultWithObservation.unsafeRunSync()
+  // yields: Right(Registers(-21,42,Map(1 -> 9, 2 -> 0, 3 -> 0)))
+  // prints out as IO side-effect all intermediate program states:
+  // Right(ProgramState(RegistersOpsConfig(papercomputer.RegistersOps$<function>apercomputer.RegistersOps$$$Lambda$7644/154046850@23f67fd9,papercomputer.RegistersOps$$$Lambda$7645/525407211@21d9452c),Map(170 -> Jmp(120), 120 -> Isz(3), 10 -> Isz(1), 110 -> Jmp(60), 20 -> Jmp(40), 60 -> Isz(2), 160 -> Inc(1), 70 -> Jmp(90), 140 -> Stp, 130 -> Jmp(150), 80 -> Jmp(120), 150 -> Dec(3), 50 -> Jmp(10), 40 -> Dec(1), 30 -> Jmp(60), 90 -> Dec(2), 100 -> Inc(1)),List(),Some(10),Registers(-21,42,Map(1 -> 42, 2 -> 4, 3 -> 5))))
+  // ...
+  //Right(ProgramState(RegistersOpsConfig(papercomputer.RegistersOps$<function>apercomputer.RegistersOps$$$Lambda$7644/154046850@23f67fd9,papercomputer.RegistersOps$$$Lambda$7645/525407211@21d9452c),Map(170 -> Jmp(120), 120 -> Isz(3), 10 -> Isz(1), 110 -> Jmp(60), 20 -> Jmp(40), 60 -> Isz(2), 160 -> Inc(1), 70 -> Jmp(90), 140 -> Stp, 130 -> Jmp(150), 80 -> Jmp(120), 150 -> Dec(3), 50 -> Jmp(10), 40 -> Dec(1), 30 -> Jmp(60), 90 -> Dec(2), 100 -> Inc(1)),List(),None,Registers(-21,42,Map(1 -> 9, 2 -> 0, 3 -> 0))))
 }
 ```
 

@@ -35,10 +35,6 @@ package object papercomputer {
   type RegisterValues = immutable.Map[RegisterNumber, RegisterValue]
   def emptyRegisterValues: RegisterValues = Map.empty
 
-  /** A factory from min register value, max register value and register values to a message or registers. */
-  type RegistersFactory =
-    (RegisterValue, RegisterValue, RegisterValues) => Mor[Registers]
-
   /** Program line numbers are positive > 0. */
   type LineNumber = Value Refined Positive
   val minLineNumber: LineNumber = refineMV[Positive](1)
@@ -57,6 +53,12 @@ package object papercomputer {
   type Program = immutable.Map[LineNumber, Command]
   def emptyProgram: Program = Map.empty
 
-  /** Executes a program on registers starting with the lowest line number. */
-  type ProgramExecutionF = (Program, Registers) => Mor[Registers]
+  /** Executes a program on registers, starting with the lowest line number.
+    * Registers are build from a registers configuration.
+    * Building the registers may fail with a message.
+    * Executing the program may fail with a message.
+    * Program execution may be infinite if program contains a loop.
+    * If no failure and program finishes, the final registers are returned.
+    */
+  type ProgramExecutionF = (Program, RegistersConfig) => Mor[Registers]
 }

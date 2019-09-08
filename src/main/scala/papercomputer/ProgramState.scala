@@ -1,10 +1,14 @@
 package papercomputer
 
-import cats.data.StateT
-import cats.implicits._
+import cats.data.{Kleisli, StateT}
+import cats.implicits.{catsStdInstancesForEither, toFunctorOps}
+import cats.{Applicative, Id}
+import fs2.{Pure, Stream}
+
+import scala.annotation.tailrec
 
 /**
-  * @param config       The configuration of the linkage between Command and Registers.
+  * @param registersOpsConfig The configuration of the linkage between Command and Registers.
   * @param program      The immutable Program of the currently active stack, will not change during runtime of this stack.
   * @param stack        A stack to keep track of the next program and line numbers where to continue after a Stp.
   *                     Initially, this list is empty.
@@ -20,7 +24,7 @@ import cats.implicits._
   *                     A None indicated that the program execution is finished.
   * @param registers    The registers in the state before the execution of the Command in currentLineO.
   */
-final case class ProgramState private (config: ProgramStateConfig,
+final case class ProgramState private (registersOpsConfig: RegistersOpsConfig,
                                        program: Program,
                                        stack: Stack,
                                        currentLineO: Option[LineNumber],
@@ -33,16 +37,8 @@ final case class ProgramState private (config: ProgramStateConfig,
 }
 
 object ProgramState {
-  def apply(program: Program, registers: Registers): Mor[ProgramState] =
-    apply(
-      ProgramStateConfig(RegistersOps.inc, RegistersOps.dec, RegistersOps.isz),
-      program,
-      emptyStack,
-      startLineO(program),
-      registers
-    )
 
-  def apply(config: ProgramStateConfig,
+  def apply(registersOpsConfig: RegistersOpsConfig,
             program: Program,
             stack: Stack,
             currentLineO: Option[LineNumber],
@@ -53,29 +49,40 @@ object ProgramState {
     else if (!checkStack(stack))
       Left(IllegalReferenceToNonExistingLineNumber)
     else
-      Right(new ProgramState(config, program, stack, currentLineO, registers))
+      Right(
+        new ProgramState(registersOpsConfig,
+                         program,
+                         stack,
+                         currentLineO,
+                         registers))
 
-  /** ProgramState => Message or Tuple2 of (next ProgramState, original ProgramState)
-    * If the current ProgramState's currentLineO is a Some,
-    * this returns the ProgramState after execution of the currentLine's Command,
-    * or a failure Message.
-    * If currentLineO is a None, this returns a failure message.
-    */
-  def next: StateT[Mor, ProgramState, ProgramState] =
-    StateT { currentProgramState =>
-      val config = currentProgramState.config
+  private def apply(program: Program, registers: Registers): Mor[ProgramState] =
+    apply(
+      RegistersOpsConfig(RegistersOps.inc, RegistersOps.dec, RegistersOps.isz),
+      program,
+      emptyStack,
+      startLineO(program),
+      registers
+    )
+
+  val morPsFromProgramStateConfig
+    : Kleisli[Mor, ProgramStateConfig, ProgramState] =
+    for {
+      registers <- Registers.fromRegistersConfig
+        .local[ProgramStateConfig](_.registersConfig)
+      programState <- Kleisli[Mor, ProgramStateConfig, ProgramState](
+        programStateConfig => apply(programStateConfig.program, registers))
+    } yield programState
+
+  val nextPs: ProgramState => Mor[ProgramState] =
+    (currentProgramState: ProgramState) => {
+      val registersOpsConfig = currentProgramState.registersOpsConfig
       val program = currentProgramState.program
-      lazy val incF = currentProgramState.config.incF
-      lazy val decF = currentProgramState.config.decF
-      lazy val iszF = currentProgramState.config.iszF
       val stack = currentProgramState.stack
       val currentLineO = currentProgramState.currentLineO
       val registers = currentProgramState.registers
 
       lazy val currentLine: LineNumber = currentLineO.get
-
-      lazy val nextLineNumberFromCurrentLine: Mor[LineNumber] =
-        nextLineNumberFromGivenLine(currentLine)
 
       def nextLineNumberFromGivenLine(
           currentLn: LineNumber): Mor[LineNumber] = {
@@ -84,11 +91,14 @@ object ProgramState {
         else Left(NoNextLinenNumberFoundInProgram)
       }
 
+      lazy val nextLineNumberFromCurrentLine: Mor[LineNumber] =
+        nextLineNumberFromGivenLine(currentLine)
+
       def continueWithNextLine(newRegisters: Registers): Mor[ProgramState] =
         nextLineNumberFromCurrentLine.flatMap(ln =>
-          continueWithLine(ln, newRegisters))
+          continueWithGivenLine(ln, newRegisters))
 
-      def continueWithLine(
+      def continueWithGivenLine(
           newLineNumber: LineNumber,
           newRegisters: Registers = registers): Mor[ProgramState] =
         continueWithProgram(program, stack, Some(newLineNumber), newRegisters)
@@ -98,7 +108,11 @@ object ProgramState {
           newStack: Stack,
           newLineNumberO: Option[LineNumber],
           newRegisters: Registers = registers): Mor[ProgramState] =
-        ProgramState(config, newProgram, newStack, newLineNumberO, newRegisters)
+        ProgramState(registersOpsConfig,
+                     newProgram,
+                     newStack,
+                     newLineNumberO,
+                     newRegisters)
 
       def prgSubNextProgramState(
           programToStack: Program,
@@ -117,17 +131,17 @@ object ProgramState {
         incDecF(registerNumber)(registers).flatMap(continueWithNextLine)
 
       def jmp(jmpLine: LineNumber): Mor[ProgramState] =
-        if (program.contains(jmpLine)) continueWithLine(jmpLine)
+        if (program.contains(jmpLine)) continueWithGivenLine(jmpLine)
         else Left(IllegalReferenceToNonExistingLineNumber)
 
       def isz(registerNumber: RegisterNumber): Mor[ProgramState] =
         for {
-          zero <- iszF(registerNumber)(registers)
+          zero <- registersOpsConfig.iszF(registerNumber)(registers)
           sameOrFirstNextLine <- if (zero) nextLineNumberFromCurrentLine
           else Right(currentLine)
           firstOrSecondNextLine <- nextLineNumberFromGivenLine(
             sameOrFirstNextLine)
-          programState <- continueWithLine(firstOrSecondNextLine)
+          programState <- continueWithGivenLine(firstOrSecondNextLine)
         } yield programState
 
       def stp(): Mor[ProgramState] = {
@@ -159,19 +173,53 @@ object ProgramState {
                                  programToExecute = program,
                                  newCurrentLineO = Some(subLine))
 
-      for {
-        newPs <- currentLineO.map(program) match {
-          case None                      => Left(CannotRunAFinishedProgram)
-          case Some(Inc(registerNumber)) => incDec(incF, registerNumber)
-          case Some(Dec(registerNumber)) => incDec(decF, registerNumber)
-          case Some(Jmp(jmpLine))        => jmp(jmpLine)
-          case Some(Isz(registerNumber)) => isz(registerNumber)
-          case Some(Stp)                 => stp()
-          case Some(Prg(subProgram))     => prg(subProgram)
-          case Some(Sub(subLine))        => sub(subLine)
-        }
-      } yield (newPs, currentProgramState)
+      currentLineO.map(program) match {
+        case None => Left(CannotRunAFinishedProgram)
+        case Some(Inc(registerNumber)) =>
+          incDec(registersOpsConfig.incF, registerNumber)
+        case Some(Dec(registerNumber)) =>
+          incDec(registersOpsConfig.decF, registerNumber)
+        case Some(Jmp(jmpLine))        => jmp(jmpLine)
+        case Some(Isz(registerNumber)) => isz(registerNumber)
+        case Some(Stp)                 => stp()
+        case Some(Prg(subProgram))     => prg(subProgram)
+        case Some(Sub(subLine))        => sub(subLine)
+      }
     }
+
+  /** Given a f to transform A to F[A], returns a StateT which this effect F and the Tuple2 of next state and current
+    * state.
+    */
+  def nextAndCurrentState[A, F[_]: Applicative](f: A => F[A]): StateT[F, A, A] =
+    StateT(current => f(current).map((_, current)))
+
+  /** ProgramState => Message or Tuple2 of (next ProgramState, current ProgramState)
+    * If the current ProgramState's currentLineO is a Some,
+    * this returns the ProgramState after execution of the currentLine's Command,
+    * or a failure Message.
+    * If currentLineO is a None, this returns a failure message.
+    */
+  val next: StateT[Mor, ProgramState, ProgramState] = nextAndCurrentState(
+    nextPs)
+
+  /** Converts a ProgramState to a (potentially infinite) stream. */
+  @tailrec
+  def stream(streamSoFar: Stream[Pure, Mor[ProgramState]],
+             morPs: Mor[ProgramState],
+             nextF: ProgramState => Mor[ProgramState])
+    : Stream[Pure, Mor[ProgramState]] =
+    morPs match {
+      case Left(_) => streamSoFar ++ Stream.emit(morPs)
+      case Right(ps) =>
+        val newStream = streamSoFar ++ Stream.emit(morPs)
+        if (ps.currentLineO.isEmpty) newStream
+        else stream(newStream, nextF(ps), nextF)
+    }
+
+  val streamFromProgramStateConfig
+    : Kleisli[Id, ProgramStateConfig, Stream[Pure, Mor[ProgramState]]] =
+    morPsFromProgramStateConfig.mapF[Id, Stream[Pure, Mor[ProgramState]]](
+      stream(Stream.empty, _, nextPs))
 
   private def checkStack(stack: Stack): Boolean = stack.forall {
     case (p, ln) => p.contains(ln)
@@ -181,5 +229,8 @@ object ProgramState {
     if (program.isEmpty) None else Some(program.keySet.minBy(_.value))
 }
 
+final case class ProgramStateConfig(program: Program,
+                                    registersConfig: RegistersConfig)
+
 // The linkage between Command and Registers
-final case class ProgramStateConfig(incF: IncDecF, decF: IncDecF, iszF: IszF)
+final case class RegistersOpsConfig(incF: IncDecF, decF: IncDecF, iszF: IszF)

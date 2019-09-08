@@ -1,5 +1,7 @@
 package papercomputer
 
+import cats.data.Kleisli
+
 final case class Registers private (minRegisterValue: RegisterValue,
                                     maxRegisterValue: RegisterValue,
                                     registerValues: RegisterValues) {
@@ -10,8 +12,6 @@ final case class Registers private (minRegisterValue: RegisterValue,
 }
 
 object Registers {
-  // Signature is equivalent to type RegistersFactory, but the implicit logic of Register() being equivalent to
-  // Registers.apply() only works if apply is defined as a normal def with parameters.
   def apply(minRegisterValue: RegisterValue,
             maxRegisterValue: RegisterValue,
             registerValues: RegisterValues): Mor[Registers] = {
@@ -26,6 +26,12 @@ object Registers {
     else
       Right(new Registers(minRegisterValue, maxRegisterValue, registerValues))
   }
+
+  val fromRegistersConfig: Kleisli[Mor, RegistersConfig, Registers] = Kleisli(
+    (registersConfig: RegistersConfig) =>
+      apply(registersConfig.minRegisterValue,
+            registersConfig.maxRegisterValue,
+            registersConfig.registerValues))
 }
 
 object RegistersOps {
@@ -60,9 +66,10 @@ object RegistersOps {
       oldRv <- registerValue(registerNumber, registers)
       rvNew = if (oldRv == valueToWrap) wrappedValue else newValueF(oldRv)
       rvsNew = registers.registerValues.updated(registerNumber, rvNew)
-      rsNew <- Registers.apply(registers.minRegisterValue,
-                               registers.maxRegisterValue,
-                               rvsNew)
+      newConfig = RegistersConfig(registers.minRegisterValue,
+                                  registers.maxRegisterValue,
+                                  rvsNew)
+      rsNew <- Registers.fromRegistersConfig(newConfig)
     } yield rsNew
 
   private def registerValue(registerNumber: RegisterNumber,
@@ -72,3 +79,7 @@ object RegistersOps {
       .toRight(IllegalAccessToNonExistingRegisterNumber)
 
 }
+
+final case class RegistersConfig(minRegisterValue: RegisterValue,
+                                 maxRegisterValue: RegisterValue,
+                                 registerValues: RegisterValues)

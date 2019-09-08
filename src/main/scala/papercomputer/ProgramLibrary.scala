@@ -1,6 +1,6 @@
 package papercomputer
 
-import eu.timepit.refined.auto._
+import eu.timepit.refined.auto.autoRefineV
 
 /**
   * Library of programs. These are tested in ProgramExecutionTestSpec.

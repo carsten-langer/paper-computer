@@ -1,7 +1,7 @@
 package papercomputer
 
-import cats.implicits._
-import eu.timepit.refined.auto._
+import eu.timepit.refined.auto.autoRefineV
+import fs2.{Pure, Stream}
 import org.scalacheck.Gen
 import org.scalatest.EitherValues.{
   convertLeftProjectionToValuable,
@@ -86,25 +86,26 @@ class ProgramStateTestSpec
 
     def assertProgramState(oldProgramState: ProgramState)(
         programStateUnderTest: ProgramState,
-        newConfig: ProgramStateConfig = oldProgramState.config,
+        newRegistersOpsConfig: RegistersOpsConfig =
+          oldProgramState.registersOpsConfig,
         newProgram: Program = oldProgramState.program,
         newStack: Stack = oldProgramState.stack,
         newCurrentLineO: Option[LineNumber] = oldProgramState.currentLineO,
         newRegisters: Registers = oldProgramState.registers): Assertion =
       assertProgramState(programStateUnderTest,
-                         newConfig,
+                         newRegistersOpsConfig,
                          newProgram,
                          newStack,
                          newCurrentLineO,
                          newRegisters)
 
     def assertProgramState(programStateUnderTest: ProgramState,
-                           config: ProgramStateConfig,
+                           registersOpsConfig: RegistersOpsConfig,
                            program: Program,
                            stack: Stack,
                            currentLineO: Option[LineNumber],
                            registers: Registers): Assertion = {
-      programStateUnderTest.config.shouldEqual(config)
+      programStateUnderTest.registersOpsConfig.shouldEqual(registersOpsConfig)
       programStateUnderTest.program.shouldEqual(program)
       programStateUnderTest.stack.shouldEqual(stack)
       programStateUnderTest.currentLineO.shouldEqual(currentLineO)
@@ -112,21 +113,26 @@ class ProgramStateTestSpec
     }
   }
 
-  behavior of "ProgramState.apply(program, registers)"
+  behavior of "ProgramState.morPsFromProgramStateConfig"
 
   it should "return correct state for empty program" in new Fixture {
     forAll(genRegisters) { registers =>
-      val morPs: Mor[ProgramState] = ProgramState(emptyProgram, registers)
+      val registersConfig = RegistersConfig(registers.minRegisterValue,
+                                            registers.maxRegisterValue,
+                                            registers.registerValues)
+      val programStateConfig = ProgramStateConfig(emptyProgram, registersConfig)
+      val morPs: Mor[ProgramState] =
+        ProgramState.morPsFromProgramStateConfig(programStateConfig)
       val ps: ProgramState = morPs.right.value
       // config shall come from Registers functions
       // empty program shall be copied into the state
       // stack shall be empty
       // start line shall be None
       // registers shall be copied into the state
-      val expectedConfig =
-        ProgramStateConfig(RegistersOps.inc, RegistersOps.dec, RegistersOps.isz)
+      val expectedRegistersOpsConfig =
+        RegistersOpsConfig(RegistersOps.inc, RegistersOps.dec, RegistersOps.isz)
       assertProgramState(ps,
-                         expectedConfig,
+                         expectedRegistersOpsConfig,
                          emptyProgram,
                          emptyStack,
                          None,
@@ -135,62 +141,74 @@ class ProgramStateTestSpec
   }
 
   it should "create correct state for non-empty program" in new Fixture {
-
     forAll(genNonEmptyProgram, genRegisters) { (program, registers) =>
-      whenever(program.nonEmpty) {
-        val morPs: Mor[ProgramState] = ProgramState(program, registers)
-        val ps: ProgramState = morPs.right.value
-        // config shall come from Registers functions
-        // program shall be copied into the state
-        // stack shall be empty
-        // start line should be lowest line in program
-        // registers shall be copied into the state
-        val expectedConfig =
-          ProgramStateConfig(RegistersOps.inc,
-                             RegistersOps.dec,
-                             RegistersOps.isz)
-        val expectedCurrentLineO = Some(program.keySet.minBy(_.value))
-        assertProgramState(ps,
-                           expectedConfig,
-                           program,
-                           emptyStack,
-                           expectedCurrentLineO,
-                           registers)
-      }
+      val registersConfig = RegistersConfig(registers.minRegisterValue,
+                                            registers.maxRegisterValue,
+                                            registers.registerValues)
+      val programStateConfig = ProgramStateConfig(program, registersConfig)
+      val morPs: Mor[ProgramState] =
+        ProgramState.morPsFromProgramStateConfig(programStateConfig)
+      val ps: ProgramState = morPs.right.value
+      // config shall come from Registers functions
+      // program shall be copied into the state
+      // stack shall be empty
+      // start line should be lowest line in program
+      // registers shall be copied into the state
+      val expectedRegistersOpsConfig =
+        RegistersOpsConfig(RegistersOps.inc, RegistersOps.dec, RegistersOps.isz)
+      val expectedCurrentLineO = Some(program.keySet.minBy(_.value))
+      assertProgramState(ps,
+                         expectedRegistersOpsConfig,
+                         program,
+                         emptyStack,
+                         expectedCurrentLineO,
+                         registers)
     }
   }
 
   behavior of "ProgramState.apply(config, program, stack, startLineO, registers)"
 
   it should "create correct state for empty startLine and empty stack" in new Fixture {
-    forAll(genConfig, genProgram, genRegisters) {
-      (config, program, registers) =>
+    forAll(genRegistersOpsConfig, genProgram, genRegisters) {
+      (registersOpsConfig, program, registers) =>
         val morPs: Mor[ProgramState] =
-          ProgramState(config, program, emptyStack, None, registers)
+          ProgramState(registersOpsConfig, program, emptyStack, None, registers)
         val ps: ProgramState = morPs.right.value
         // program shall be copied into the state
         // stack shall be empty
         // start line shall be None
         // registers shall be copied into the state
-        assertProgramState(ps, config, program, emptyStack, None, registers)
+        assertProgramState(ps,
+                           registersOpsConfig,
+                           program,
+                           emptyStack,
+                           None,
+                           registers)
     }
   }
 
   it should "fail for empty startLine and non-empty stack" in new Fixture {
-    forAll(genConfig, genNonEmptyProgram, genNonEmptyStack, genRegisters) {
-      (config, program, nonEmptyStack, registers) =>
+    forAll(genRegistersOpsConfig,
+           genNonEmptyProgram,
+           genNonEmptyStack,
+           genRegisters) {
+      (registersOpsConfig, program, nonEmptyStack, registers) =>
         val morPs: Mor[ProgramState] =
-          ProgramState(config, program, nonEmptyStack, None, registers)
+          ProgramState(registersOpsConfig,
+                       program,
+                       nonEmptyStack,
+                       None,
+                       registers)
         morPs.left.value.shouldEqual(IllegalState)
     }
   }
 
   it should "fail for non-empty startLine not in program" in new Fixture {
-    forAll(genConfig, genProgram, genLineNumber, genRegisters) {
-      (config, program, startLine: LineNumber, registers) =>
+    forAll(genRegistersOpsConfig, genProgram, genLineNumber, genRegisters) {
+      (registersOpsConfig, program, startLine: LineNumber, registers) =>
         whenever(!program.contains(startLine)) {
           val morPs: Mor[ProgramState] =
-            ProgramState(config,
+            ProgramState(registersOpsConfig,
                          program,
                          emptyStack,
                          Some(startLine),
@@ -209,29 +227,43 @@ class ProgramStateTestSpec
         stack = partStack ++ List((nep, nonContainedLine)) ++ partStack
       } yield (nep, startLine, stack)
 
-    forAll(genConfig, gen, genRegisters) {
-      case (config,
+    forAll(genRegistersOpsConfig, gen, genRegisters) {
+      case (registersOpsConfig,
             (program, startLine: LineNumber, stack),
             registers: Registers) =>
         val morPs: Mor[ProgramState] =
-          ProgramState(config, program, stack, Some(startLine), registers)
+          ProgramState(registersOpsConfig,
+                       program,
+                       stack,
+                       Some(startLine),
+                       registers)
         morPs.left.value.shouldEqual(IllegalReferenceToNonExistingLineNumber)
     }
   }
 
   it should "create correct state for correct non-empty start line and correct stack" in new Fixture {
-    forAll(genConfig, genProgramAndAnyContainedLine, genStack, genRegisters) {
-      case (config, (program, startLine: LineNumber), stack, registers) =>
+    forAll(genRegistersOpsConfig,
+           genProgramAndAnyContainedLine,
+           genStack,
+           genRegisters) {
+      case (registersOpsConfig,
+            (program, startLine: LineNumber),
+            stack,
+            registers) =>
         whenever(program.nonEmpty) {
           val morPs: Mor[ProgramState] =
-            ProgramState(config, program, stack, Some(startLine), registers)
+            ProgramState(registersOpsConfig,
+                         program,
+                         stack,
+                         Some(startLine),
+                         registers)
           val ps: ProgramState = morPs.right.value
           // program shall be copied into the state
           // stack shall be copied into the state
           // start line should be given line
           // registers shall be copied into the state
           assertProgramState(ps,
-                             config,
+                             registersOpsConfig,
                              program,
                              stack,
                              Some(startLine),
@@ -240,25 +272,29 @@ class ProgramStateTestSpec
     }
   }
 
-  behavior of "ProgramState.next if currentLine is None, which indicates end of program"
+  behavior of "ProgramState.nextPs if currentLine is None, which indicates end of program"
 
   it should "fail with CannotRunAFinishedProgram" in new Fixture {
     def genPs: Gen[ProgramState] =
       for {
-        config <- genConfig
+        registersOpsConfig <- genRegistersOpsConfig
         program <- genProgram
         rs <- genRegisters
-        programState = newProgramState(config, program, emptyStack, None, rs)
+        programState = newProgramState(registersOpsConfig,
+                                       program,
+                                       emptyStack,
+                                       None,
+                                       rs)
       } yield programState
 
     forAll(genPs) { programState =>
       val morPs: Mor[ProgramState] =
-        ProgramState.next.runS(programState)
+        ProgramState.nextPs(programState)
       morPs.left.value.shouldEqual(CannotRunAFinishedProgram)
     }
   }
 
-  behavior of "ProgramState.next for Inc"
+  behavior of "ProgramState.nextPs for Inc"
 
   it should "return correct state if incF succeeds and next line exists" in new Fixture {
     forAll(genIncDecF,
@@ -275,13 +311,13 @@ class ProgramStateTestSpec
             newRegisters) =>
         val incF: IncDecF =
           assertingIncDecF(registerNumber, oldRegisters, newRegisters)
-        val config = ProgramStateConfig(incF, decF, iszF)
+        val config = RegistersOpsConfig(incF, decF, iszF)
         val programState = newProgramState(config,
                                            program,
                                            stack,
                                            Some(currentLine),
                                            oldRegisters)
-        val morPs = ProgramState.next.runS(programState)
+        val morPs = ProgramState.nextPs(programState)
         val nextProgramState: ProgramState = morPs.right.value
         // current line shall be firstNextLine
         // registers shall be updated
@@ -305,13 +341,13 @@ class ProgramStateTestSpec
             oldRegisters,
             newRegisters) =>
         val incF: IncDecF = _ => _ => Right(newRegisters)
-        val config = ProgramStateConfig(incF, decF, iszF)
+        val config = RegistersOpsConfig(incF, decF, iszF)
         val programState = newProgramState(config,
                                            program,
                                            stack,
                                            Some(currentLine),
                                            oldRegisters)
-        val morPs = ProgramState.next.runS(programState)
+        val morPs = ProgramState.nextPs(programState)
         morPs.left.value.shouldEqual(NoNextLinenNumberFoundInProgram)
     }
   }
@@ -324,19 +360,19 @@ class ProgramStateTestSpec
            genRegisters) {
       case (decF, iszF, (program, currentLine), stack, oldRegisters) =>
         val incF: IncDecF = _ => _ => Left(MessageDuringUnitTests)
-        val config = ProgramStateConfig(incF, decF, iszF)
+        val config = RegistersOpsConfig(incF, decF, iszF)
         val programState = newProgramState(config,
                                            program,
                                            stack,
                                            Some(currentLine),
                                            oldRegisters)
-        val morPs = ProgramState.next.runS(programState)
+        val morPs = ProgramState.nextPs(programState)
         morPs.left.value.shouldEqual(MessageDuringUnitTests)
     }
   }
 
   // todo remove more parallelism between Inc and Dec
-  behavior of "ProgramState.next for Dec"
+  behavior of "ProgramState.nextPs for Dec"
 
   it should "return correct state if decF succeeds and next line exists" in new Fixture {
     forAll(genIncDecF,
@@ -353,13 +389,13 @@ class ProgramStateTestSpec
             newRegisters) =>
         val decF: IncDecF =
           assertingIncDecF(registerNumber, oldRegisters, newRegisters)
-        val config = ProgramStateConfig(incF, decF, iszF)
+        val config = RegistersOpsConfig(incF, decF, iszF)
         val programState = newProgramState(config,
                                            program,
                                            stack,
                                            Some(currentLine),
                                            oldRegisters)
-        val morPs = ProgramState.next.runS(programState)
+        val morPs = ProgramState.nextPs(programState)
         val nextProgramState: ProgramState = morPs.right.value
         // current line shall be firstNextLine
         // registers shall be updated
@@ -383,13 +419,13 @@ class ProgramStateTestSpec
             oldRegisters,
             newRegisters) =>
         val decF: IncDecF = _ => _ => Right(newRegisters)
-        val config = ProgramStateConfig(incF, decF, iszF)
+        val config = RegistersOpsConfig(incF, decF, iszF)
         val programState = newProgramState(config,
                                            program,
                                            stack,
                                            Some(currentLine),
                                            oldRegisters)
-        val morPs = ProgramState.next.runS(programState)
+        val morPs = ProgramState.nextPs(programState)
         morPs.left.value.shouldEqual(NoNextLinenNumberFoundInProgram)
     }
   }
@@ -402,18 +438,18 @@ class ProgramStateTestSpec
            genRegisters) {
       case (incF, iszF, (program, currentLine), stack, oldRegisters) =>
         val decF: IncDecF = _ => _ => Left(MessageDuringUnitTests)
-        val config = ProgramStateConfig(incF, decF, iszF)
+        val config = RegistersOpsConfig(incF, decF, iszF)
         val programState = newProgramState(config,
                                            program,
                                            stack,
                                            Some(currentLine),
                                            oldRegisters)
-        val morPs = ProgramState.next.runS(programState)
+        val morPs = ProgramState.nextPs(programState)
         morPs.left.value.shouldEqual(MessageDuringUnitTests)
     }
   }
 
-  behavior of "ProgramState.next for Jmp"
+  behavior of "ProgramState.nextPs for Jmp"
 
   it should "return correct state if line exists" in new Fixture {
     val genProgramStateForJmpOK: Gen[(ProgramState, LineNumber)] = for {
@@ -425,7 +461,7 @@ class ProgramStateTestSpec
 
     forAll(genProgramStateForJmpOK) {
       case (programState, jmpLine) =>
-        val morPs = ProgramState.next.runS(programState)
+        val morPs = ProgramState.nextPs(programState)
         val newProgramState: ProgramState = morPs.right.value
         // current line shall be jmpLine
         assertProgramState(programState)(newProgramState,
@@ -443,12 +479,12 @@ class ProgramStateTestSpec
       } yield programState
 
     forAll(genProgramStateForJmpNOK) { programState =>
-      val morPs = ProgramState.next.runS(programState)
+      val morPs = ProgramState.nextPs(programState)
       morPs.left.value.shouldEqual(IllegalReferenceToNonExistingLineNumber)
     }
   }
 
-  behavior of "ProgramState.next for Isz"
+  behavior of "ProgramState.nextPs for Isz"
 
   it should "return correct state if iszF returns true and second next line exists" in new Fixture {
     val genProgramStateForIszTrueOK
@@ -476,10 +512,10 @@ class ProgramStateTestSpec
             registers) =>
         val iszF: IszF =
           assertingIszF(registerNumber, registers, resultingIsZero = true)
-        val config = ProgramStateConfig(incF, decF, iszF)
+        val config = RegistersOpsConfig(incF, decF, iszF)
         val programState =
           newProgramState(config, program, stack, Some(currentLine), registers)
-        val morPs = ProgramState.next.runS(programState)
+        val morPs = ProgramState.nextPs(programState)
         val nextProgramState: ProgramState = morPs.right.value
         // current line shall be secondNextLine
         assertProgramState(programState)(nextProgramState,
@@ -504,10 +540,10 @@ class ProgramStateTestSpec
            genRegisters) {
       case (incF, decF, (program, currentLine), stack, registers) =>
         val iszF: IszF = _ => _ => Right(true)
-        val config = ProgramStateConfig(incF, decF, iszF)
+        val config = RegistersOpsConfig(incF, decF, iszF)
         val programState =
           newProgramState(config, program, stack, Some(currentLine), registers)
-        val morPs = ProgramState.next.runS(programState)
+        val morPs = ProgramState.nextPs(programState)
         morPs.left.value.shouldEqual(NoNextLinenNumberFoundInProgram)
     }
   }
@@ -531,10 +567,10 @@ class ProgramStateTestSpec
             stack,
             registers) =>
         val iszF: IszF = _ => _ => Right(false)
-        val config = ProgramStateConfig(incF, decF, iszF)
+        val config = RegistersOpsConfig(incF, decF, iszF)
         val programState =
           newProgramState(config, program, stack, Some(currentLine), registers)
-        val morPs = ProgramState.next.runS(programState)
+        val morPs = ProgramState.nextPs(programState)
         val nextProgramState: ProgramState = morPs.right.value
         // current line shall be firstNextLine
         assertProgramState(programState)(nextProgramState,
@@ -556,10 +592,10 @@ class ProgramStateTestSpec
            genRegisters) {
       case (incF, decF, (program, currentLine), stack, registers) =>
         val iszF: IszF = _ => _ => Right(false)
-        val config = ProgramStateConfig(incF, decF, iszF)
+        val config = RegistersOpsConfig(incF, decF, iszF)
         val programState =
           newProgramState(config, program, stack, Some(currentLine), registers)
-        val morPs = ProgramState.next.runS(programState)
+        val morPs = ProgramState.nextPs(programState)
         morPs.left.value.shouldEqual(NoNextLinenNumberFoundInProgram)
     }
   }
@@ -578,15 +614,15 @@ class ProgramStateTestSpec
            genRegisters) {
       case (incF, decF, (program, currentLine), stack, registers) =>
         val iszF: IszF = _ => _ => Left(MessageDuringUnitTests)
-        val config = ProgramStateConfig(incF, decF, iszF)
+        val config = RegistersOpsConfig(incF, decF, iszF)
         val programState =
           newProgramState(config, program, stack, Some(currentLine), registers)
-        val morPs = ProgramState.next.runS(programState)
+        val morPs = ProgramState.nextPs(programState)
         morPs.left.value.shouldEqual(MessageDuringUnitTests)
     }
   }
 
-  behavior of "ProgramState.next for Stp"
+  behavior of "ProgramState.nextPs for Stp"
 
   it should "return correct state on empty stack" in new Fixture {
     val genProgramStateForStp: Gen[ProgramState] = for {
@@ -596,7 +632,7 @@ class ProgramStateTestSpec
     } yield programState
 
     forAll(genProgramStateForStp) { programState =>
-      val morPs = ProgramState.next.runS(programState)
+      val morPs = ProgramState.nextPs(programState)
       val newProgramState: ProgramState = morPs.right.value
       // current line shall be None
       assertProgramState(programState)(newProgramState, newCurrentLineO = None)
@@ -612,7 +648,7 @@ class ProgramStateTestSpec
     } yield programState
 
     forAll(genProgramStateForStp) { programState =>
-      val morPs = ProgramState.next.runS(programState)
+      val morPs = ProgramState.nextPs(programState)
       val newProgramState: ProgramState = morPs.right.value
       // stack shall be the tail of the original stack
       // current program and current line shall come from the head of the original stack
@@ -624,7 +660,7 @@ class ProgramStateTestSpec
     }
   }
 
-  behavior of "ProgramState.next for Sub"
+  behavior of "ProgramState.nextPs for Sub"
 
   it should "return correct state if sub line and next line exist" in new Fixture {
     val genProgramStateForSubOK: Gen[(ProgramState, LineNumber, LineNumber)] =
@@ -637,7 +673,7 @@ class ProgramStateTestSpec
 
     forAll(genProgramStateForSubOK) {
       case (programState, subLine, firstNextLine) =>
-        val morPs = ProgramState.next.runS(programState)
+        val morPs = ProgramState.nextPs(programState)
         val newProgramState: ProgramState = morPs.right.value
         // new current line shall be subLine
         // new stack stall be old stack with (currentProgram, firstNextLine) prepended
@@ -657,7 +693,7 @@ class ProgramStateTestSpec
     } yield programState
 
     forAll(genProgramStateForSubNoNextLine) { programState =>
-      val morPs = ProgramState.next.runS(programState)
+      val morPs = ProgramState.nextPs(programState)
       morPs.left.value.shouldEqual(NoNextLinenNumberFoundInProgram)
     }
   }
@@ -671,12 +707,12 @@ class ProgramStateTestSpec
     } yield programState
 
     forAll(genProgramStateForSubNoNextLine) { programState =>
-      val morPs = ProgramState.next.runS(programState)
+      val morPs = ProgramState.nextPs(programState)
       morPs.left.value.shouldEqual(IllegalReferenceToNonExistingLineNumber)
     }
   }
 
-  behavior of "ProgramState.next for Prg"
+  behavior of "ProgramState.nextPs for Prg"
 
   it should "return correct state for non-empty sub programs and next line exists" in new Fixture {
     val genProgramStateForNonEmptyPrg
@@ -690,7 +726,7 @@ class ProgramStateTestSpec
 
     forAll(genProgramStateForNonEmptyPrg) {
       case (programState, subProgram, firstNextLine) =>
-        val morPs = ProgramState.next.runS(programState)
+        val morPs = ProgramState.nextPs(programState)
         val newProgramState: ProgramState = morPs.right.value
         // new program shall be subProgram
         // new stack stall be old stack with old program and firstNextLine prepended
@@ -716,7 +752,7 @@ class ProgramStateTestSpec
 
     forAll(genProgramStateForEmptyPrg) {
       case (programState, firstNextLine) =>
-        val morPs = ProgramState.next.runS(programState)
+        val morPs = ProgramState.nextPs(programState)
         val newProgramState: ProgramState = morPs.right.value
         // new program shall be subProgram
         // new stack stall be old stack with old program and firstNextLine prepended
@@ -734,8 +770,75 @@ class ProgramStateTestSpec
     } yield programState
 
     forAll(genProgramStateForPrgNoNextLine) { programState =>
-      val morPs = ProgramState.next.runS(programState)
+      val morPs = ProgramState.nextPs(programState)
       morPs.left.value.shouldEqual(NoNextLinenNumberFoundInProgram)
+    }
+  }
+
+  behavior of "ProgramState.stream"
+
+  trait StreamFixture extends Fixture {
+    lazy val genFinishedProgramState: Gen[Mor[ProgramState]] = for {
+      config <- genRegistersOpsConfig
+      program <- genProgram
+      registers <- genRegisters
+      programState = newProgramState(config,
+                                     program,
+                                     emptyStack,
+                                     None,
+                                     registers)
+    } yield Right(programState)
+
+    lazy val nextNotToBeCalledF: ProgramState => Mor[ProgramState] = _ => fail
+  }
+
+  it should "add a Left to the stream without calling next" in new StreamFixture {
+    forAll(genNonEmptyStream) { streamSoFar =>
+      val newStream: Stream[Pure, Mor[ProgramState]] =
+        ProgramState.stream(streamSoFar,
+                            Left(MessageDuringUnitTests),
+                            nextNotToBeCalledF)
+      val oldSize = streamSoFar.toList.size
+      val newSize = newStream.toList.size
+      newSize.shouldEqual(oldSize + 1)
+      newStream.take(oldSize.toLong).toList.shouldEqual(streamSoFar.toList)
+      newStream.last.toList.head.shouldEqual(Some(Left(MessageDuringUnitTests)))
+    }
+  }
+
+  it should "add a Right(ended program state) to the stream without calling next" in new StreamFixture {
+    forAll(genNonEmptyStream, genFinishedProgramState) {
+      (streamSoFar, finishedPs) =>
+        val newStream: Stream[Pure, Mor[ProgramState]] =
+          ProgramState.stream(streamSoFar, finishedPs, nextNotToBeCalledF)
+        val oldSize = streamSoFar.toList.size
+        val newSize = newStream.toList.size
+        newSize.shouldEqual(oldSize + 1)
+        newStream.take(oldSize.toLong).toList.shouldEqual(streamSoFar.toList)
+        newStream.last.toList.head.get
+          .shouldEqual(finishedPs)
+    }
+  }
+
+  it should "add a Right(non-ended program state), then call the next function and add its ending program state result" in new StreamFixture {
+    lazy val genEndingProgramState: Gen[Mor[ProgramState]] = for {
+      morProgramState <- Gen.oneOf(genFinishedProgramState,
+                                   Gen.const(Left(MessageDuringUnitTests)))
+    } yield morProgramState
+
+    forAll(genNonEmptyStream, genNonFinishedProgramState, genEndingProgramState) {
+      (streamSoFar, psBefore, psLast) =>
+        val nextF: ProgramState => Mor[ProgramState] = prevPs => {
+          prevPs.shouldEqual(psBefore.right.get)
+          psLast
+        }
+        val newStream: Stream[Pure, Mor[ProgramState]] =
+          ProgramState.stream(streamSoFar, psBefore, nextF)
+        val oldSize = streamSoFar.toList.size
+        val newSize = newStream.toList.size
+        newSize.shouldEqual(oldSize + 2)
+        newStream.take(oldSize.toLong).toList.shouldEqual(streamSoFar.toList)
+        newStream.drop(oldSize.toLong).toList.shouldEqual(List(psBefore, psLast))
     }
   }
 

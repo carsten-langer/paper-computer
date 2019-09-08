@@ -1,6 +1,6 @@
 name := "paper-computer"
 
-version := "0.5"
+version := "0.6"
 
 // https://www.scala-lang.org/download/all.html
 scalaVersion := "2.12.9"
@@ -24,6 +24,9 @@ libraryDependencies ++= Seq(
   "eu.timepit" %% "refined-cats" % "0.9.9", // optional
   "eu.timepit" %% "refined-eval" % "0.9.9" // optional, JVM-only
 )
+
+// https://fs2.io/
+libraryDependencies += "co.fs2" %% "fs2-core" % "1.0.4"
 
 scalacOptions ++= Seq(
   "-deprecation", // Emit warning and location for usages of deprecated APIs.

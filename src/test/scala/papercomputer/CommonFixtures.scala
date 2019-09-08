@@ -1,10 +1,11 @@
 package papercomputer
 
 import eu.timepit.refined.api.{Refined, Validate}
+import eu.timepit.refined.auto.autoRefineV
 import eu.timepit.refined.numeric.{NonNegative, Positive}
 import eu.timepit.refined.refineV
-import eu.timepit.refined.auto._
 import eu.timepit.refined.types.numeric.PosInt
+import fs2.{Pure, Stream}
 import org.scalacheck.{Arbitrary, Cogen, Gen}
 
 trait CommonFixtures {
@@ -50,7 +51,8 @@ trait CommonFixtures {
         minNumRegisters,
         lowestMinRv,
         highestMaxRv)
-      rs = Registers(minRV, maxRV, rvs).right.get
+      rsConfig = RegistersConfig(minRV, maxRV, rvs)
+      rs = Registers.fromRegistersConfig(rsConfig).right.get
     } yield (minRV, maxRV, rvs, rs)
 
   def genRegisters: Gen[Registers] =
@@ -114,17 +116,17 @@ trait CommonFixtures {
   lazy val genIszF: Gen[IszF] =
     Gen.function1[RegisterNumber, Registers => Mor[Boolean]](genRsToMorB)
 
-  lazy val genConfig: Gen[ProgramStateConfig] = for {
+  lazy val genRegistersOpsConfig: Gen[RegistersOpsConfig] = for {
     incF <- genIncDecF
     decF <- genIncDecF
     iszF <- genIszF
-  } yield ProgramStateConfig(incF, decF, iszF)
+  } yield RegistersOpsConfig(incF, decF, iszF)
 
   lazy val genStack: Gen[Stack] = Gen.listOf(genProgramAndAnyContainedLine)
 
   // create a new ProgramState under the assumption that all parameters are ok,
   // so it will always be a Right
-  def newProgramState(config: ProgramStateConfig,
+  def newProgramState(config: RegistersOpsConfig,
                       program: Program,
                       stack: Stack,
                       currentLineO: Option[LineNumber],
@@ -135,7 +137,7 @@ trait CommonFixtures {
                       stack: Stack,
                       currentLine: LineNumber): Gen[ProgramState] =
     for {
-      config <- genConfig
+      config <- genRegistersOpsConfig
       registers <- genRegisters
     } yield
       newProgramState(config, program, stack, Some(currentLine), registers)
@@ -146,5 +148,15 @@ trait CommonFixtures {
       stack <- genStack
       programState <- genProgramState(program, stack, currentLine)
     } yield programState
+
+  val genNonFinishedProgramState: Gen[Mor[ProgramState]] = for {
+    (program, currentLine) <- genProgramAndAnyContainedLine
+    programState <- genProgramState(program, currentLine)
+  } yield Right(programState)
+
+  val genNonEmptyStream: Gen[Stream[Pure, Mor[ProgramState]]] = for {
+    programStates <- Gen.nonEmptyListOf(genNonFinishedProgramState)
+    stream = Stream(programStates: _*)
+  } yield stream
 
 }

@@ -1,5 +1,6 @@
 package papercomputer
 
+import eu.timepit.refined.auto.autoRefineV
 import org.scalacheck.Gen
 import org.scalatest.EitherValues.{
   convertLeftProjectionToValuable,
@@ -7,7 +8,6 @@ import org.scalatest.EitherValues.{
 }
 import org.scalatest.{Assertion, FlatSpec, Matchers}
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
-import eu.timepit.refined.auto._
 
 class RegistersTestSpec
     extends FlatSpec
@@ -53,88 +53,85 @@ class RegistersTestSpec
     }
   }
 
-  behavior of "Registers.apply"
+  behavior of "Registers.fromRegistersConfig"
 
   it should "fail if minRv > 0" in new Fixture {
-    val gen: Gen[(RegisterValue, RegisterValue)] = for {
+    val gen: Gen[RegistersConfig] = for {
       maxRv <- Gen.chooseNum[RegisterValue](1, maxRegisterValue)
       minRv <- Gen.chooseNum[RegisterValue](1, maxRv)
-    } yield (minRv, maxRv)
+      genRv = Gen.chooseNum(minRv, maxRv)
+      genRnRv = Gen.zip(genRegisterNumber, genRv)
+      rvs <- Gen.mapOf(genRnRv)
+      rsConfig = RegistersConfig(minRv, maxRv, rvs)
+    } yield rsConfig
 
-    forAll((gen, "minRv, maxRv")) {
-      case (minRv: RegisterValue, maxRv: RegisterValue) =>
-        whenever(minRv > 0 && minRv <= maxRv) {
-          val rvs: RegisterValues = emptyRegisterValues
-          val mors: Mor[Registers] = Registers(minRv, maxRv, rvs)
-          mors.left.value
-            .shouldEqual(MinRegisterValueMustBeLessOrEqualZero)
-        }
+    forAll(gen) { rsConfig: RegistersConfig =>
+      val mors: Mor[Registers] = Registers.fromRegistersConfig(rsConfig)
+      mors.left.value
+        .shouldEqual(MinRegisterValueMustBeLessOrEqualZero)
     }
   }
 
   it should "fail if maxRv < 0" in new Fixture {
-    val gen: Gen[(RegisterValue, RegisterValue)] = for {
+    val gen: Gen[RegistersConfig] = for {
       minRv <- Gen.chooseNum[RegisterValue](minRegisterValue, -1)
       maxRv <- Gen.chooseNum[RegisterValue](minRv, -1)
-    } yield (minRv, maxRv)
+      genRv = Gen.chooseNum(minRv, maxRv)
+      genRnRv = Gen.zip(genRegisterNumber, genRv)
+      rvs <- Gen.mapOf(genRnRv)
+      rsConfig = RegistersConfig(minRv, maxRv, rvs)
+    } yield rsConfig
 
-    forAll((gen, "minRv, maxRv")) {
-      case (minRv: RegisterValue, maxRv: RegisterValue) =>
-        whenever(minRv <= maxRv && maxRv < 0) {
-          val rvs: RegisterValues = emptyRegisterValues
-          val mors: Mor[Registers] = Registers(minRv, maxRv, rvs)
-          mors.left.value
-            .shouldEqual(MaxRegisterValueMustBeGreaterOrEqualZero)
-        }
+    forAll(gen) { rsConfig: RegistersConfig =>
+      val mors: Mor[Registers] = Registers.fromRegistersConfig(rsConfig)
+      mors.left.value
+        .shouldEqual(MaxRegisterValueMustBeGreaterOrEqualZero)
     }
   }
 
   it should "fail if any value < minRv" in new Fixture {
-    val gen: Gen[(RegisterValue, RegisterValue, RegisterValues)] = for {
-      (minRv, maxRv) <- genMinMaxRegisterValue()
-      genRvLessMin = Gen.chooseNum(minRegisterValue, minRv)
-      genRnRv = Gen.zip(genRegisterNumber, genRvLessMin)
-      rnrvs <- Gen.mapOf(genRnRv)
-    } yield (minRv, maxRv, rnrvs)
+    val gen: Gen[RegistersConfig] = for {
+      (minRv, maxRv, rvs) <- genMinMaxRegisterValueRegisterValues(0L)
+      rvLessMin <- Gen.chooseNum(minRegisterValue, minRv).suchThat(_ < minRv)
+      rnLessMin <- genRegisterNumber
+      rvsWithLessMin = rvs + (rnLessMin -> rvLessMin)
+      rsConfig = RegistersConfig(minRv, maxRv, rvsWithLessMin)
+    } yield rsConfig
 
-    forAll((gen, "minRv, maxRv, registerValues")) {
-      case (minRv: RegisterValue, maxRv: RegisterValue, rvs: RegisterValues) =>
-        whenever(rvs.values.exists(_ < minRv)) {
-          val mors: Mor[Registers] = Registers(minRv, maxRv, rvs)
-          mors.left.value
-            .shouldEqual(RegisterValueMustNotBeSmallerThanMinRegisterValue)
-        }
+    forAll(gen) { rsConfig =>
+      val mors: Mor[Registers] = Registers.fromRegistersConfig(rsConfig)
+      mors.left.value
+        .shouldEqual(RegisterValueMustNotBeSmallerThanMinRegisterValue)
     }
   }
 
   it should "fail if any value > maxRv" in new Fixture {
-    val gen: Gen[(RegisterValue, RegisterValue, RegisterValues)] = for {
-      (minRv, maxRv) <- genMinMaxRegisterValue()
-      genRvGEMin = Gen.chooseNum(minRv, maxRegisterValue)
-      genRnRv = Gen.zip(genRegisterNumber, genRvGEMin)
-      rnrvs <- Gen.mapOf(genRnRv)
-    } yield (minRv, maxRv, rnrvs)
+    val gen: Gen[RegistersConfig] = for {
+      (minRv, maxRv, rvs) <- genMinMaxRegisterValueRegisterValues(0L)
+      rvGreaterMax <- Gen.chooseNum(maxRv, maxRegisterValue).suchThat(_ > maxRv)
+      rnGreaterMax <- genRegisterNumber
+      rvsWithGreaterMax = rvs + (rnGreaterMax -> rvGreaterMax)
+      rsConfig = RegistersConfig(minRv, maxRv, rvsWithGreaterMax)
+    } yield rsConfig
 
-    forAll((gen, "minRv, maxRv, registerValues")) {
-      case (minRv: RegisterValue, maxRv: RegisterValue, rvs: RegisterValues) =>
-        whenever(rvs.values.exists(_ > maxRv)) {
-          val mors: Mor[Registers] = Registers(minRv, maxRv, rvs)
-          mors.left.value
-            .shouldEqual(RegisterValueMustNotBeGreaterThanMaxRegisterValue)
-        }
+    forAll(gen) { rsConfig =>
+      val mors: Mor[Registers] = Registers.fromRegistersConfig(rsConfig)
+      mors.left.value
+        .shouldEqual(RegisterValueMustNotBeGreaterThanMaxRegisterValue)
     }
   }
 
   it should "succeed if all values >= minRV and <= maxRV and have copied all values in" in new Fixture {
-    forAll(
-      (genMinMaxRegisterValueRegisterValues(0L),
-       "minRv, maxRv, registerValues")) {
-      case (minRv: RegisterValue, maxRv: RegisterValue, rvs: RegisterValues) =>
-        val mors: Mor[Registers] = Registers(minRv, maxRv, rvs)
-        val rs = mors.right.value // assert it is a Right(_) and ignore the values as they are tested in a different test
-        rs.minRegisterValue.shouldEqual(minRv)
-        rs.maxRegisterValue.shouldEqual(maxRv)
-        rs.registerValues.shouldEqual(rvs)
+    val gen: Gen[RegistersConfig] = for {
+      (minRv, maxRv, rvs) <- genMinMaxRegisterValueRegisterValues(0L)
+      rsConfig = RegistersConfig(minRv, maxRv, rvs)
+    } yield rsConfig
+    forAll(gen) { rsConfig =>
+      val mors: Mor[Registers] = Registers.fromRegistersConfig(rsConfig)
+      val rs = mors.right.value // assert it is a Right(_) and ignore the values as they are tested in a different test
+      rs.minRegisterValue.shouldEqual(rsConfig.minRegisterValue)
+      rs.maxRegisterValue.shouldEqual(rsConfig.maxRegisterValue)
+      rs.registerValues.shouldEqual(rsConfig.registerValues)
     }
   }
 

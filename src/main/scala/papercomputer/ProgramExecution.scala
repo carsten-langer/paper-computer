@@ -1,33 +1,45 @@
 package papercomputer
 
-import cats.data.StateT
-import cats.implicits._
+import cats.data.Kleisli
+import cats.effect.IO
+import cats.implicits.toFunctorOps
+import cats.{ApplicativeError, Functor}
+import fs2.{Pure, Stream}
 
 object ProgramExecution {
-  lazy val execute: ProgramExecutionF =
-    executeObserved(_ => (), ProgramState.next)
+  implicit val registersFactory: Kleisli[Mor, RegistersConfig, Registers] =
+    Registers.fromRegistersConfig
 
-  def executeObserved(sideEffect: => ProgramState => Unit,
-                      next: StateT[Mor, ProgramState, ProgramState] =
-                        ProgramState.next): ProgramExecutionF =
-    (program: Program, registers: Registers) =>
-      toStream(ProgramState(program, registers), next)
-        .foldLeft[Mor[Registers]](Right(registers)) {
-          case (_, morPs) =>
-            for {
-              ps <- morPs
-              _ = sideEffect(ps)
-            } yield ps.registers
-      }
+  def liftMap[F[_], T](purePsStream: Stream[Pure, Mor[ProgramState]],
+                       f: Mor[ProgramState] => F[Mor[T]]): Stream[F, Mor[T]] =
+    purePsStream.flatMap(f.andThen(Stream.eval))
 
-  def toStream(morPsPs: Mor[ProgramState],
-               next: StateT[Mor, ProgramState, ProgramState])
-    : Stream[Mor[ProgramState]] =
-    morPsPs match {
-      case Left(_) => Seq(morPsPs).toStream
-      case Right(ps) if ps.currentLineO.isEmpty =>
-        Seq(morPsPs).toStream
-      case Right(ps) => Right(ps) #:: toStream(next.runS(ps), next)
-    }
+  def last[F[_]: Functor, T](nonEmptyStream: Stream[F, Mor[T]])(
+      implicit compiler: Stream.Compiler[F, F]): F[Mor[T]] =
+    nonEmptyStream.lastOr(Left(IllegalState)).compile.toList.map(_.head)
 
+  def execute[F[_], T](stream: Stream[Pure, Mor[ProgramState]],
+                       observationF: Mor[ProgramState] => F[Mor[T]])(
+      implicit ae: ApplicativeError[F, Throwable],
+      compiler: Stream.Compiler[F, F]): F[Mor[T]] =
+    last(liftMap(stream, observationF))
+
+  def execute[F[_], T](program: Program,
+                       registersConfig: RegistersConfig,
+                       observationF: Mor[ProgramState] => F[Mor[T]])(
+      implicit ae: ApplicativeError[F, Throwable],
+      compiler: Stream.Compiler[F, F]): F[Mor[T]] = {
+    val programStateConfig = ProgramStateConfig(program, registersConfig)
+    val stream: Stream[Pure, Mor[ProgramState]] =
+      ProgramState.streamFromProgramStateConfig(programStateConfig)
+    execute[F, T](stream, observationF)
+  }
+
+  val execute: ProgramExecutionF =
+    (program: Program, registersConfig: RegistersConfig) =>
+      execute[IO, Registers](
+        program,
+        registersConfig,
+        (morPs: Mor[ProgramState]) => IO(morPs.map(_.registers)))
+        .unsafeRunSync()
 }
