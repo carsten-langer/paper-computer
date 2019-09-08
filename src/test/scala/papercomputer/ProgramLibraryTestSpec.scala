@@ -13,7 +13,7 @@ class ProgramLibraryTestSpec
     with Matchers {
   trait Fixture extends CommonFixtures {
 
-    def _PRINTOUT_DURING_TESTS_ = true
+    def _PRINTOUT_DURING_TESTS_ = false
 
     // for property-based tests, limit the register value range the platform can hold so that it does not take
     // too long to wrap around the value space for adding negative values
@@ -65,7 +65,7 @@ class ProgramLibraryTestSpec
 
     val morRs: Mor[Registers] =
       ProgramExecution
-        .execute(ProgramLibrary.programZeroR1, registersConfig45780, printRegisters)
+        .execute(ProgramLibrary.programZeroR1, registersConfig45780, printRegisters(true))
         .unsafeRunSync()
     morRs.right.value.registerValues(1L).shouldEqual(0)
   }
@@ -74,7 +74,7 @@ class ProgramLibraryTestSpec
     val morRs: Mor[Registers] = ProgramExecution
       .execute(ProgramLibrary.programAdditionR1plusR2toR1,
                registersConfig45780,
-               printRegisters)
+               printRegisters(true))
       .unsafeRunSync()
     morRs.right.value.registerValues(1L).shouldEqual(9)
   }
@@ -84,7 +84,7 @@ class ProgramLibraryTestSpec
       ProgramExecution
         .execute(ProgramLibrary.programAdditionR2plusR3toR1,
                  registersConfig45780,
-                 printRegisters)
+                 printRegisters(true))
         .unsafeRunSync()
     morRs.right.value.registerValues(1L).shouldEqual(13)
   }
@@ -94,7 +94,7 @@ class ProgramLibraryTestSpec
       ProgramExecution
         .execute(ProgramLibrary.fibonacci(3L, 1L, 2L, 4L, 5L),
                  registersConfig45780,
-                 printRegisters)
+                 printRegisters(true))
         .unsafeRunSync()
     morRs.right.value.registerValues(1L).shouldEqual(21)
   }
