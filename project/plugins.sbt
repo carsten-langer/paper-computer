@@ -11,4 +11,4 @@ addSbtPlugin("ch.epfl.scala" % "sbt-scalafix" % "0.9.5")
 addSbtPlugin("org.lyranthe.sbt" % "partial-unification" % "1.1.2")
 
 // https://github.com/typelevel/kind-projector
-addCompilerPlugin("org.typelevel" %% "kind-projector" % "0.10.3")
+addCompilerPlugin("org.typelevel" %% "kind-projector" % "0.11.2" cross CrossVersion.full)
