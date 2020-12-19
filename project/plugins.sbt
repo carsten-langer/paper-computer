@@ -5,7 +5,7 @@
 //addSbtPlugin("com.artima.supersafe" % "sbtplugin" % "1.1.8")
 
 // https://scalacenter.github.io/scalafix/docs/users/installation.html
-addSbtPlugin("ch.epfl.scala" % "sbt-scalafix" % "0.9.5")
+addSbtPlugin("ch.epfl.scala" % "sbt-scalafix" % "0.9.24")
 
 // https://github.com/fiadliel/sbt-partial-unification
 addSbtPlugin("org.lyranthe.sbt" % "partial-unification" % "1.1.2")
