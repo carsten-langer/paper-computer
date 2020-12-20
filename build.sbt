@@ -56,5 +56,5 @@ scalacOptions ++= Seq(
   "-Xlint:private-shadow", // A private field (or class parameter) shadows a superclass field.
   "-Xlint:stars-align", // Pattern sequence wildcard must align with sequence component.
   "-Xlint:type-parameter-shadow", // A local type parameter shadows a type already in scope.
-  //"-Yrecursion:123" // TODO maybe I need type recursion is needed in the future?
+  //"-Yrecursion:123" // TODO maybe I need type recursion in the future?
 )

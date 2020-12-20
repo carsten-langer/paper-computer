@@ -1,8 +1,8 @@
 [![Build Status](https://travis-ci.org/carsten-langer/paper-computer.svg?branch=master)](https://travis-ci.org/carsten-langer/paper-computer)
 
 # paper-computer
-A _functional_ Scala library implementation of a computer working with a sheet of paper, a pen and a set of items e.g. matches
-(Streichholzcomputer / Papiercomputer), used for education in the 1980s.
+A _functional_ Scala library implementation of a computer working with a sheet of paper, a pen,
+and a set of items e.g. matches (Streichholzcomputer / Papiercomputer), used for education in the 1980s.
 
 For background see
 * [WDR paper computer](https://en.wikipedia.org/wiki/WDR_paper_computer)
@@ -12,9 +12,9 @@ For background see
 A paper-computer is a state-machine. Each state consists of a set of registers, holding the register value
 information, and the information which line in the program would be executed next. 
 
-The execution of a single program line will either fail (e.g. trying to increment a non-existing register, or jumping to a
-non-existing next program line) or return a new state with potentially changed register values and a changed
-command line to execute next. 
+The execution of a single program line will either fail (e.g. trying to increment a non-existing register,
+or jumping to a non-existing next program line) or return a new state with potentially changed register values,
+and a changed command line to execute next. 
 
 The execution of a whole program will start execution at the first command and move the state machine forward until
 a `Stp` command is encountered.
@@ -86,8 +86,9 @@ type Mor[T] = Either[Message, T]
 ### Program Execution
 
 #### Default execution
-A default program execution takes a program and an initial registers state and returns either the resulting registers state
-at the end of the program, or an error `Message`, e.g. `IllegalAccessToNonExistingRegisterNumber`.
+A default program execution takes a program and an initial registers state,
+and returns either the resulting registers state at the end of the program,
+or an error `Message`, e.g. `IllegalAccessToNonExistingRegisterNumber`.
 
 ```scala
 class RegistersConfig(minRegisterValue: RegisterValue, maxRegisterValue: RegisterValue, registerValues: RegisterValues)
@@ -106,7 +107,8 @@ In detail:
 Execution is safe from stack overflows but may not end if you have an unconditional loop in your paper-computer program.
 
 #### Execution stream
-Under the hood, execution builds a `Stream` of `ProgramState`s. Execution can also be effectful and yielding any other result which can be derived from `ProgramState`.
+Under the hood, execution builds a `Stream` of `ProgramState`s.
+Execution can also be effectful and yielding any other result which can be derived from `ProgramState`.
 See the example usage below for an example of interleaving an `IO` effect for printing out each intermediate step.
 For more details on hooking into the `Stream` see the source code of `ProgramState` and `ProgramExecution`. 
 
