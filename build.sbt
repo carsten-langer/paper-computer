@@ -27,7 +27,7 @@ libraryDependencies ++= Seq(
 )
 
 // https://fs2.io/
-libraryDependencies += "co.fs2" %% "fs2-core" % "1.0.4"
+libraryDependencies += "co.fs2" %% "fs2-core" % "2.4.6"
 
 scalacOptions ++= Seq(
   "-deprecation", // Emit warning and location for usages of deprecated APIs.
