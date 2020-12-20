@@ -44,7 +44,7 @@ class ProgramLibraryTestSpec
         }))
 
     // wrap the rv into the value range between minRv and maxRv inclusive
-    // as this match-computer implements a modulo arithmetic
+    // as this papercomputer implements a modulo arithmetic
     def wrapRv(rv: RegisterValue,
                minRv: RegisterValue,
                maxRv: RegisterValue): RegisterValue = {

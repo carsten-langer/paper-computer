@@ -6,13 +6,11 @@ import scala.collection.immutable
 
 package object papercomputer {
 
-  // TODO reword match-computer to paper-computer throughout the project
-
-  /** The architecture model of the match-computer determines independently the
-    * - min and max register values,
-    * - max register numbers (register numbers start at 0)
-    * - max number of code lines in a program (code line numbers start at 1)
-    */
+  /* The architecture model of the papercomputer determines independently the
+   * - min and max register values,
+   * - max register numbers (register numbers start at 0)
+   * - max number of code lines in a program (code line numbers start at 1)
+   */
 
   /** The range of values that a register can hold. */
   type RegisterValue = Long
