@@ -19,10 +19,11 @@ libraryDependencies += "org.scalacheck" %% "scalacheck" % "1.14.1" % Test
 // scalamock siehe http://scalamock.org/quick-start/
 // libraryDependencies += "org.scalamock" %% "scalamock-scalatest-support" % "3.6.0" % Test
 
+// https://github.com/fthomas/refined
 libraryDependencies ++= Seq(
-  "eu.timepit" %% "refined" % "0.9.9",
-  "eu.timepit" %% "refined-cats" % "0.9.9", // optional
-  "eu.timepit" %% "refined-eval" % "0.9.9" // optional, JVM-only
+  "eu.timepit" %% "refined" % "0.9.19",
+  "eu.timepit" %% "refined-cats" % "0.9.19", // optional
+  "eu.timepit" %% "refined-eval" % "0.9.19" // optional, JVM-only
 )
 
 // https://fs2.io/
