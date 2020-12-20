@@ -10,12 +10,6 @@ import org.scalacheck.{Arbitrary, Cogen, Gen}
 
 trait CommonFixtures {
 
-  // for performance reasons this assumes only correct values are refined within these tests,
-  // so refineV will always be a Right
-  def genRefinedFromValueRange[P](minValue: Value, maxValue: Value)
-                                 (implicit v: Validate[Value, P]): Gen[Refined[Value, P]] =
-    Gen.chooseNum(minValue, maxValue).map(refineV[P](_).right.get)
-
   def genMinMaxRegisterValue(lowestMinRv: RegisterValue = minRegisterValue,
                              highestMaxRv: RegisterValue = maxRegisterValue): Gen[(RegisterValue, RegisterValue)] =
     for {
@@ -23,8 +17,11 @@ trait CommonFixtures {
       maxRv <- Gen.chooseNum[RegisterValue](0, highestMaxRv)
     } yield (minRv, maxRv)
 
+  // for performance reasons this assumes only correct values are refined within these tests,
+  // so refineV will always be a Right
   lazy val genRegisterNumber: Gen[RegisterNumber] =
-    genRefinedFromValueRange[NonNegative](minRegisterNumber.value, maxRegisterNumber.value)
+    Gen.chooseNum(minRegisterNumber.value, maxRegisterNumber.value)
+      .map(refineV[NonNegative](_).right.get)
 
   def genMinMaxRegisterValueRegisterValues(minNumRegisters: RegisterNumber,
                                            lowestMinRv: RegisterValue = minRegisterValue,
@@ -53,7 +50,11 @@ trait CommonFixtures {
 
   def genRegisters: Gen[Registers] = genMinMaxRegisterValueRegisterValuesRegisters(0L).map(_._4)
 
-  lazy val genLineNumber: Gen[LineNumber] = genRefinedFromValueRange[Positive](minLineNumber.value, maxLineNumber.value)
+  // for performance reasons this assumes only correct values are refined within these tests,
+  // so refineV will always be a Right
+  lazy val genLineNumber: Gen[LineNumber] =
+    Gen.chooseNum(minLineNumber.value, maxLineNumber.value)
+      .map(refineV[Positive](_).right.get)
 
   lazy val genCommand: Gen[Command] = {
     val genInc = genRegisterNumber.map(Inc)
