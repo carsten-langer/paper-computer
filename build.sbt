@@ -3,7 +3,7 @@ name := "paper-computer"
 version := "0.7"
 
 // https://www.scala-lang.org/download/all.html
-scalaVersion := "2.12.12"
+scalaVersion := "2.13.0"
 
 // https://typelevel.org/cats/
 libraryDependencies += "org.typelevel" %% "cats-core" % "2.3.0"
@@ -37,16 +37,12 @@ scalacOptions ++= Seq(
   "-feature", // Emit warning and location for usages of features that should be imported explicitly.
   "-unchecked", // Enable additional warnings where generated code depends on assumptions.
   "-language:higherKinds",
-  "-Ypartial-unification",
-  "-Xfuture", // Turn on future language features.
-  "-Yno-adapted-args",
   "-Ywarn-dead-code",
   "-Ywarn-numeric-widen",
   "-Ywarn-value-discard",
   "-Ywarn-unused",
-  "-Xfatal-warnings", // Fail the compilation if there are any warnings.
+  //"-Xfatal-warnings", // Fail the compilation if there are any warnings.
   "-Xlint:adapted-args", // Warn if an argument list is modified to match the receiver.
-  "-Xlint:by-name-right-associative", // By-name parameter of right associative operator.
   "-Xlint:delayedinit-select", // Selecting member of DelayedInit.
   "-Xlint:doc-detached", // A Scaladoc comment appears to be detached from its element.
   "-Xlint:inaccessible", // Warn about inaccessible types in method signatures.
@@ -60,6 +56,5 @@ scalacOptions ++= Seq(
   "-Xlint:private-shadow", // A private field (or class parameter) shadows a superclass field.
   "-Xlint:stars-align", // Pattern sequence wildcard must align with sequence component.
   "-Xlint:type-parameter-shadow", // A local type parameter shadows a type already in scope.
-  "-Xlint:unsound-match", // Pattern match may not be typesafe.
   //"-Yrecursion:123" // TODO maybe I need type recursion is needed in the future?
 )

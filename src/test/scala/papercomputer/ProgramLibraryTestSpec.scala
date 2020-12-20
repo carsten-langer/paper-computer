@@ -120,7 +120,7 @@ class ProgramLibraryTestSpec
           minTestRegisterValue,
           maxTestRegisterValue)
         rsConfig = RegistersConfig(minRv, maxRv, rvs)
-        Seq((rnA, rvA), (rnB, rvB)) <- Gen.pick(2, rvs)
+        collection.Seq((rnA, rvA), (rnB, rvB)) <- Gen.pick(2, rvs)
         expectedRv = wrapRv(rvA + rvB, minRv, maxRv)
       } yield (rsConfig, rnA, rnB, expectedRv)
 
@@ -145,7 +145,7 @@ class ProgramLibraryTestSpec
           minTestRegisterValue,
           maxTestRegisterValue)
         rsConfig = RegistersConfig(minRv, maxRv, rvs)
-        Seq((rnA, _), (rnB, rvB), (rnC, rvC)) <- Gen.pick(3, rvs)
+        collection.Seq((rnA, _), (rnB, rvB), (rnC, rvC)) <- Gen.pick(3, rvs)
         expectedRv = wrapRv(rvB + rvC, minRv, maxRv)
       } yield (rsConfig, rnA, rnB, rnC, expectedRv)
 
@@ -170,7 +170,7 @@ class ProgramLibraryTestSpec
           minTestRegisterValue,
           maxTestRegisterValue)
         rsConfig = RegistersConfig(minRv, maxRv, rvs)
-        Seq((fromRn, fromRv), (toRn, _), (tmpRn, _)) <- Gen.pick(3, rvs)
+        collection.Seq((fromRn, fromRv), (toRn, _), (tmpRn, _)) <- Gen.pick(3, rvs)
       } yield (rsConfig, fromRn, fromRv, toRn, tmpRn)
 
     forAll(gen) {
@@ -195,7 +195,7 @@ class ProgramLibraryTestSpec
           minTestRegisterValue,
           maxTestRegisterValue)
         rsConfig = RegistersConfig(minRv, maxRv, rvs)
-        Seq((rnA, _), (rnB, rvB), (rnC, rvC), (rnT1, _), (rnT2, _)) <- Gen.pick(5, rvs)
+        collection.Seq((rnA, _), (rnB, rvB), (rnC, rvC), (rnT1, _), (rnT2, _)) <- Gen.pick(5, rvs)
         expectedRv = wrapRv(rvB * rvC, minRv, maxRv)
       } yield (rsConfig, rnA, rnB, rnC, rnT1, rnT2, expectedRv)
 
@@ -216,7 +216,7 @@ class ProgramLibraryTestSpec
           minTestRegisterValue,
           maxTestRegisterValue)
         rsConfig = RegistersConfig(minRv, maxRv, rvs)
-        Seq((rnA, rvA), (rnB, rvB)) <- Gen.pick(2, rvs)
+        collection.Seq((rnA, rvA), (rnB, rvB)) <- Gen.pick(2, rvs)
         expectedRv = wrapRv(rvA - rvB, minRv, maxRv)
       } yield (rsConfig, rnA, rnB, expectedRv)
 
