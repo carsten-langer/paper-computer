@@ -6,7 +6,7 @@ version := "0.7"
 scalaVersion := "2.12.9"
 
 // https://typelevel.org/cats/
-libraryDependencies += "org.typelevel" %% "cats-core" % "2.0.0-RC1"
+libraryDependencies += "org.typelevel" %% "cats-core" % "2.3.0"
 
 // http://www.scalatest.org/install
 // not used yet libraryDependencies += "org.scalactic" %% "scalactic" % "3.0.4"
