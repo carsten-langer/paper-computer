@@ -13,7 +13,7 @@ libraryDependencies += "org.typelevel" %% "cats-core" % "2.3.0"
 libraryDependencies += "org.scalatest" %% "scalatest" % "3.0.8" % "test"
 
 // https://www.scalacheck.org/
-libraryDependencies += "org.scalacheck" %% "scalacheck" % "1.14.0" % "test"
+libraryDependencies += "org.scalacheck" %% "scalacheck" % "1.14.1" % Test
 
 // not needed as I do functional programming and property based testing
 // scalamock siehe http://scalamock.org/quick-start/
