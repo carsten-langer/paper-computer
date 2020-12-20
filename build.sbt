@@ -9,11 +9,11 @@ scalaVersion := "2.12.9"
 libraryDependencies += "org.typelevel" %% "cats-core" % "2.3.0"
 
 // http://www.scalatest.org/install
-// not used yet libraryDependencies += "org.scalactic" %% "scalactic" % "3.0.4"
-libraryDependencies += "org.scalatest" %% "scalatest" % "3.0.8" % "test"
+// not used yet libraryDependencies += "org.scalactic" %% "scalactic" % "3.2.2"
+libraryDependencies += "org.scalatest" %% "scalatest" % "3.2.2" % Test
 
-// https://www.scalacheck.org/
-libraryDependencies += "org.scalacheck" %% "scalacheck" % "1.14.1" % Test
+// https://www.scalacheck.org/ via https://www.scalatest.org/plus/scalacheck
+libraryDependencies += "org.scalatestplus" %% "scalacheck-1-14" % "3.2.2.0" % Test
 
 // not needed as I do functional programming and property based testing
 // scalamock siehe http://scalamock.org/quick-start/

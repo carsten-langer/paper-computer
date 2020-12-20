@@ -4,13 +4,15 @@ import cats.effect.IO
 import eu.timepit.refined.auto.autoRefineV
 import org.scalacheck.Gen
 import org.scalatest.EitherValues.convertRightProjectionToValuable
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
 
 class ProgramLibraryTestSpec
-    extends FlatSpec
+  extends AnyFlatSpec
     with ScalaCheckDrivenPropertyChecks
     with Matchers {
+
   trait Fixture extends CommonFixtures {
 
     def _PRINTOUT_DURING_TESTS_ = false
@@ -18,7 +20,9 @@ class ProgramLibraryTestSpec
     // for property-based tests, limit the register value range the platform can hold so that it does not take
     // too long to wrap around the value space for adding negative values
     def minTestRegisterValue: RegisterValue = -50
+
     def maxTestRegisterValue: RegisterValue = +50
+
     def maxTestRegisterNumber: RegisterNumber = 20L
 
     val registerValues45870: RegisterValues =
@@ -30,18 +34,13 @@ class ProgramLibraryTestSpec
         (5L, 0L)
       )
 
-    val registersConfig45780: RegistersConfig =
-      RegistersConfig(minRegisterValue, maxRegisterValue, registerValues45870)
+    val registersConfig45780: RegistersConfig = RegistersConfig(minRegisterValue, maxRegisterValue, registerValues45870)
 
-    def printRegisters(implicit doPrint: Boolean = _PRINTOUT_DURING_TESTS_)
-      : Mor[ProgramState] => IO[Mor[Registers]] =
+    def printRegisters(implicit doPrint: Boolean = _PRINTOUT_DURING_TESTS_): Mor[ProgramState] => IO[Mor[Registers]] =
       morPs =>
         IO(morPs.map(ps => {
           if (doPrint)
-            println(
-              "command: " +
-                ps.currentLineO
-                  .map(ps.program) + ", register values: " + ps.registers.registerValues)
+            println("command: " + ps.currentLineO.map(ps.program) + ", register values: " + ps.registers.registerValues)
           ps.registers
         }))
 
@@ -63,39 +62,32 @@ class ProgramLibraryTestSpec
 
   it should "run programZeroR1 with expected result" in new Fixture {
 
-    val morRs: Mor[Registers] =
-      ProgramExecution
-        .execute(ProgramLibrary.programZeroR1, registersConfig45780, printRegisters(true))
-        .unsafeRunSync()
+    val morRs: Mor[Registers] = ProgramExecution
+      .execute(ProgramLibrary.programZeroR1, registersConfig45780, printRegisters(true))
+      .unsafeRunSync()
     morRs.right.value.registerValues(1L).shouldEqual(0)
   }
 
   it should "run programAdditionR1plusR2toR1 with expected result" in new Fixture {
     val morRs: Mor[Registers] = ProgramExecution
-      .execute(ProgramLibrary.programAdditionR1plusR2toR1,
-               registersConfig45780,
-               printRegisters(true))
+      .execute(ProgramLibrary.programAdditionR1plusR2toR1, registersConfig45780, printRegisters(true))
       .unsafeRunSync()
     morRs.right.value.registerValues(1L).shouldEqual(9)
   }
 
   it should "run programAdditionR2plusR3toR1 with expected result" in new Fixture {
-    val morRs: Mor[Registers] =
-      ProgramExecution
-        .execute(ProgramLibrary.programAdditionR2plusR3toR1,
-                 registersConfig45780,
-                 printRegisters(true))
-        .unsafeRunSync()
+    val morRs: Mor[Registers] = ProgramExecution
+      .execute(ProgramLibrary.programAdditionR2plusR3toR1, registersConfig45780, printRegisters(true))
+      .unsafeRunSync()
     morRs.right.value.registerValues(1L).shouldEqual(13)
   }
 
   it should "run fibonacci with expected result" in new Fixture {
-    val morRs: Mor[Registers] =
-      ProgramExecution
-        .execute(ProgramLibrary.fibonacci(3L, 1L, 2L, 4L, 5L),
-                 registersConfig45780,
-                 printRegisters(true))
-        .unsafeRunSync()
+    val morRs: Mor[Registers] = ProgramExecution
+      .execute(ProgramLibrary.fibonacci(3L, 1L, 2L, 4L, 5L),
+        registersConfig45780,
+        printRegisters(true))
+      .unsafeRunSync()
     morRs.right.value.registerValues(1L).shouldEqual(21)
   }
 
@@ -121,8 +113,7 @@ class ProgramLibraryTestSpec
   }
 
   it should "run raPlusRbToRa with expected result" in new Fixture {
-    val gen
-      : Gen[(RegistersConfig, RegisterNumber, RegisterNumber, RegisterValue)] =
+    val gen: Gen[(RegistersConfig, RegisterNumber, RegisterNumber, RegisterValue)] =
       for {
         (minRv, maxRv, rvs, _) <- genMinMaxRegisterValueRegisterValuesRegisters(
           2L,
@@ -136,9 +127,7 @@ class ProgramLibraryTestSpec
     forAll(gen) {
       case (rsConfig, rnA, rnB, expectedRv) =>
         val morRs = ProgramExecution
-          .execute(ProgramLibrary.raPlusRbToRa(rnA, rnB),
-                   rsConfig,
-                   printRegisters)
+          .execute(ProgramLibrary.raPlusRbToRa(rnA, rnB), rsConfig, printRegisters)
           .unsafeRunSync()
         morRs.right.value.registerValues(rnA).shouldEqual(expectedRv)
     }
@@ -146,10 +135,10 @@ class ProgramLibraryTestSpec
 
   it should "run rbPlusRcToRa with expected results" in new Fixture {
     val gen: Gen[(RegistersConfig,
-                  RegisterNumber,
-                  RegisterNumber,
-                  RegisterNumber,
-                  RegisterValue)] =
+      RegisterNumber,
+      RegisterNumber,
+      RegisterNumber,
+      RegisterValue)] =
       for {
         (minRv, maxRv, rvs, _) <- genMinMaxRegisterValueRegisterValuesRegisters(
           3L,
@@ -163,9 +152,7 @@ class ProgramLibraryTestSpec
     forAll(gen) {
       case (rsConfig, rnA, rnB, rnC, expectedRv) =>
         val morRs = ProgramExecution
-          .execute(ProgramLibrary.rbPlusRcToRa(rnA, rnB, rnC),
-                   rsConfig,
-                   printRegisters)
+          .execute(ProgramLibrary.rbPlusRcToRa(rnA, rnB, rnC), rsConfig, printRegisters)
           .unsafeRunSync()
         morRs.right.value.registerValues(rnA).shouldEqual(expectedRv)
     }
@@ -173,10 +160,10 @@ class ProgramLibraryTestSpec
 
   it should "run copy with expected results" in new Fixture {
     val gen: Gen[(RegistersConfig,
-                  RegisterNumber,
-                  RegisterValue,
-                  RegisterNumber,
-                  RegisterNumber)] =
+      RegisterNumber,
+      RegisterValue,
+      RegisterNumber,
+      RegisterNumber)] =
       for {
         (minRv, maxRv, rvs, _) <- genMinMaxRegisterValueRegisterValuesRegisters(
           3L,
@@ -188,10 +175,7 @@ class ProgramLibraryTestSpec
 
     forAll(gen) {
       case (rsConfig, fromRn, fromRv, toRn, tmpRn) =>
-        val morRs = ProgramExecution
-          .execute(ProgramLibrary.copy(fromRn, toRn, tmpRn),
-                   rsConfig,
-                   printRegisters)
+        val morRs = ProgramExecution.execute(ProgramLibrary.copy(fromRn, toRn, tmpRn), rsConfig, printRegisters)
           .unsafeRunSync()
         morRs.right.value.registerValues(toRn).shouldEqual(fromRv)
     }
@@ -199,39 +183,33 @@ class ProgramLibraryTestSpec
 
   it should "run multiplyRnBWithRnCToRnA with expected results" in new Fixture {
     val gen: Gen[(RegistersConfig,
-                  RegisterNumber,
-                  RegisterNumber,
-                  RegisterNumber,
-                  RegisterNumber,
-                  RegisterNumber,
-                  RegisterValue)] =
+      RegisterNumber,
+      RegisterNumber,
+      RegisterNumber,
+      RegisterNumber,
+      RegisterNumber,
+      RegisterValue)] =
       for {
         (minRv, maxRv, rvs, _) <- genMinMaxRegisterValueRegisterValuesRegisters(
           5L,
           minTestRegisterValue,
           maxTestRegisterValue)
         rsConfig = RegistersConfig(minRv, maxRv, rvs)
-        Seq((rnA, _), (rnB, rvB), (rnC, rvC), (rnT1, _), (rnT2, _)) <- Gen.pick(
-          5,
-          rvs)
+        Seq((rnA, _), (rnB, rvB), (rnC, rvC), (rnT1, _), (rnT2, _)) <- Gen.pick(5, rvs)
         expectedRv = wrapRv(rvB * rvC, minRv, maxRv)
       } yield (rsConfig, rnA, rnB, rnC, rnT1, rnT2, expectedRv)
 
     forAll(gen) {
       case (rsConfig, rnA, rnB, rnC, rnT1, rnT2, expectedRv) =>
         val morRs = ProgramExecution
-          .execute(
-            ProgramLibrary.multiplyRbWithRcToRa(rnA, rnB, rnC, rnT1, rnT2),
-            rsConfig,
-            printRegisters)
+          .execute(ProgramLibrary.multiplyRbWithRcToRa(rnA, rnB, rnC, rnT1, rnT2), rsConfig, printRegisters)
           .unsafeRunSync()
         morRs.right.value.registerValues(rnA).shouldEqual(expectedRv)
     }
   }
 
   it should "run rnAMinusRnBToRnA with expected results" in new Fixture {
-    val gen
-      : Gen[(RegistersConfig, RegisterNumber, RegisterNumber, RegisterValue)] =
+    val gen: Gen[(RegistersConfig, RegisterNumber, RegisterNumber, RegisterValue)] =
       for {
         (minRv, maxRv, rvs, _) <- genMinMaxRegisterValueRegisterValuesRegisters(
           2L,
@@ -245,9 +223,7 @@ class ProgramLibraryTestSpec
     forAll(gen) {
       case (rsConfig, rnA, rnB, expectedRv) =>
         val morRs = ProgramExecution
-          .execute(ProgramLibrary.raMinusRbToRa(rnA, rnB),
-                   rsConfig,
-                   printRegisters)
+          .execute(ProgramLibrary.raMinusRbToRa(rnA, rnB), rsConfig, printRegisters)
           .unsafeRunSync()
         morRs.right.value.registerValues(rnA).shouldEqual(expectedRv)
     }

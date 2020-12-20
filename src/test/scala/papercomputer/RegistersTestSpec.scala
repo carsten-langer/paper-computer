@@ -2,42 +2,37 @@ package papercomputer
 
 import eu.timepit.refined.auto.autoRefineV
 import org.scalacheck.Gen
-import org.scalatest.EitherValues.{
-  convertLeftProjectionToValuable,
-  convertRightProjectionToValuable
-}
-import org.scalatest.{Assertion, FlatSpec, Matchers}
+import org.scalatest.Assertion
+import org.scalatest.EitherValues.{convertLeftProjectionToValuable, convertRightProjectionToValuable}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
 
 class RegistersTestSpec
-    extends FlatSpec
+  extends AnyFlatSpec
     with ScalaCheckDrivenPropertyChecks
     with Matchers {
 
   trait Fixture extends CommonFixtures {
-    def assertFailureForNonExistingRegisterNumber(
-        functionUnderTest: RegisterNumber => Registers => Mor[_]): Assertion =
+    def assertFailureForNonExistingRegisterNumber(functionUnderTest: RegisterNumber => Registers => Mor[_]): Assertion =
       forAll((genRegisters, "registers"), (genRegisterNumber, "registerNumber")) {
         (rs: Registers, rn: RegisterNumber) =>
           whenever(!rs.registerValues.contains(rn)) {
             val message: Mor[_] = functionUnderTest(rn)(rs)
-            message.left.value
-              .shouldEqual(IllegalAccessToNonExistingRegisterNumber)
+            message.left.value.shouldEqual(IllegalAccessToNonExistingRegisterNumber)
           }
       }
 
-    def assertingIncDecCheck(
-        originalRs: Registers,
-        incDecF: IncDecF,
-        boundRv: RegisterValue,
-        expectedRvForRnUnderTestF: RegisterValue => RegisterValue): Unit = {
+    def assertingIncDecCheck(originalRs: Registers,
+                             incDecF: IncDecF,
+                             boundRv: RegisterValue,
+                             expectedRvForRnUnderTestF: RegisterValue => RegisterValue): Unit = {
       // make sure at least one original value is at the upper/lower bound
       whenever(originalRs.registerValues.values.exists(_ == boundRv)) {
         // for each original registers, inc/dec each register number in turn
         // and check that only this register number was inc/dec'ed and all others are kept the same
         originalRs.registerValues.keys.foreach(rnUnderTest => {
-          val morNewRs: Mor[Registers] =
-            incDecF(rnUnderTest)(originalRs)
+          val morNewRs: Mor[Registers] = incDecF(rnUnderTest)(originalRs)
           val newRs: Registers = morNewRs.right.value
           newRs.minRegisterValue.shouldEqual(originalRs.minRegisterValue)
           newRs.maxRegisterValue.shouldEqual(originalRs.maxRegisterValue)
@@ -67,8 +62,7 @@ class RegistersTestSpec
 
     forAll(gen) { rsConfig: RegistersConfig =>
       val mors: Mor[Registers] = Registers.fromRegistersConfig(rsConfig)
-      mors.left.value
-        .shouldEqual(MinRegisterValueMustBeLessOrEqualZero)
+      mors.left.value.shouldEqual(MinRegisterValueMustBeLessOrEqualZero)
     }
   }
 
@@ -84,8 +78,7 @@ class RegistersTestSpec
 
     forAll(gen) { rsConfig: RegistersConfig =>
       val mors: Mor[Registers] = Registers.fromRegistersConfig(rsConfig)
-      mors.left.value
-        .shouldEqual(MaxRegisterValueMustBeGreaterOrEqualZero)
+      mors.left.value.shouldEqual(MaxRegisterValueMustBeGreaterOrEqualZero)
     }
   }
 
@@ -100,8 +93,7 @@ class RegistersTestSpec
 
     forAll(gen) { rsConfig =>
       val mors: Mor[Registers] = Registers.fromRegistersConfig(rsConfig)
-      mors.left.value
-        .shouldEqual(RegisterValueMustNotBeSmallerThanMinRegisterValue)
+      mors.left.value.shouldEqual(RegisterValueMustNotBeSmallerThanMinRegisterValue)
     }
   }
 
@@ -116,8 +108,7 @@ class RegistersTestSpec
 
     forAll(gen) { rsConfig =>
       val mors: Mor[Registers] = Registers.fromRegistersConfig(rsConfig)
-      mors.left.value
-        .shouldEqual(RegisterValueMustNotBeGreaterThanMaxRegisterValue)
+      mors.left.value.shouldEqual(RegisterValueMustNotBeGreaterThanMaxRegisterValue)
     }
   }
 
@@ -146,10 +137,7 @@ class RegistersTestSpec
     forAll((genRegisters, "registers")) { rs: Registers =>
       val minRv = rs.minRegisterValue
       val maxRv = rs.maxRegisterValue
-      assertingIncDecCheck(rs,
-                           RegistersOps.inc,
-                           boundRv = maxRv,
-                           rvOrig => if (rvOrig == maxRv) minRv else rvOrig + 1)
+      assertingIncDecCheck(rs, RegistersOps.inc, boundRv = maxRv, rvOrig => if (rvOrig == maxRv) minRv else rvOrig + 1)
     }
   }
 
@@ -164,10 +152,7 @@ class RegistersTestSpec
     forAll((genRegisters, "registers")) { rs: Registers =>
       val minRv = rs.minRegisterValue
       val maxRv = rs.maxRegisterValue
-      assertingIncDecCheck(rs,
-                           RegistersOps.dec,
-                           boundRv = minRv,
-                           rvOrig => if (rvOrig == minRv) maxRv else rvOrig - 1)
+      assertingIncDecCheck(rs, RegistersOps.dec, boundRv = minRv, rvOrig => if (rvOrig == minRv) maxRv else rvOrig - 1)
     }
   }
 
@@ -182,8 +167,7 @@ class RegistersTestSpec
       val rvs = rs.registerValues
       whenever(rvs.values.exists(_ == 0) && rvs.values.exists(_ != 0)) {
         rvs.foreach({
-          case (rn, rv) =>
-            RegistersOps.isz(rn)(rs).right.value.shouldEqual(rv == 0)
+          case (rn, rv) => RegistersOps.isz(rn)(rs).right.value.shouldEqual(rv == 0)
         })
       }
     }
