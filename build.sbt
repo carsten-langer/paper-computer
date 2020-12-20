@@ -3,7 +3,7 @@ name := "paper-computer"
 version := "0.7"
 
 // https://www.scala-lang.org/download/all.html
-scalaVersion := "2.12.9"
+scalaVersion := "2.12.12"
 
 // https://typelevel.org/cats/
 libraryDependencies += "org.typelevel" %% "cats-core" % "2.3.0"
