@@ -2,7 +2,7 @@
 
 # paper-computer
 A _functional_ Scala library implementation of a computer working with a sheet of paper, a pen,
-and a set of items e.g. matches (Streichholzcomputer / Papiercomputer), used for education in the 1980s.
+and a set of items e.g. matches (Streichholzcomputer / Papiercomputer), used for computer education in the 1980s.
 
 For background see
 * [WDR paper computer](https://en.wikipedia.org/wiki/WDR_paper_computer)
@@ -19,34 +19,52 @@ and a changed command line to execute next.
 The execution of a whole program will start execution at the first command and move the state machine forward until
 a `Stp` command is encountered.
 
-### Value ranges
-The simulated architecture of the paper-computer builds on top of a `Value` type, which can be chosen to be Scala's
-`Long` type or e.g. `Int` to reduce resource usage:
+### Architectural value ranges
+The simulated architecture of the paper-computer builds on top of three architectural value ranges.
+  
+  - The range of values a single register can hold for `RegisterValue`. 
+  - The range of register addresses for `RegisterNumber`.
+  - The range of program line numbers for `LineNumber`.
 
+Each of the ranges could be defined separately, e.g. as Scala's type `Long`, or e.g. `Int` to reduce resource usage.
+By default, the base type for all three ranges is `Long`.
+
+
+###  Single RegisterValue
 ```scala
-type Value = Long
-val minValue: Value = Long.MinValue
-val maxValue: Value = Long.MaxValue
+type RegisterValue = Long
+val minRegisterValue: RegisterValue = Long.MinValue
+val maxRegisterValue: RegisterValue = Long.MaxValue
+```
+
+###  Single RegisterNumber
+```scala
+type RegisterNumber = Long Refined NonNegative
+val minRegisterNumber: RegisterNumber = refineMV[NonNegative](0L)
+val maxRegisterNumber: RegisterNumber = refineMV[NonNegative](Long.MaxValue)
 ```
 
 ###  Registers
-There is:
 ```scala
-type NonNegativeValue = Value Refined NonNegative
-type RegisterNumber = NonNegativeValue
-type RegisterValue = Value
 type RegisterValues = immutable.Map[RegisterNumber, RegisterValue]
 case class RegistersConfig(minRegisterValue: RegisterValue, maxRegisterValue: RegisterValue, registerValues: RegisterValues)
 case class Registers(minRegisterValue: RegisterValue, maxRegisterValue: RegisterValue, registerValues: RegisterValues)
 ```
 That is: `Registers` holds a map from `RegisterNumber` to `RegisterValue`.
-The `minRegisterValue` and `maxRegisterValue` allow to simulate in the paper computer various real-world architectures,
+The `minRegisterValue` and `maxRegisterValue` allow simulating in the paper-computer various real-world architectures,
 e.g. signed 8-bit registers with a value range from -128 to 127,
 or unsigned 16-bit registers with a value range from 0 to 65,535, including wrap-around.
 For example, incrementing a signed 8-bit register with value 127 results in a new value of -128, like in real world.
 
 A `Registers` is actually created from a `RegistersConfig`, which has the same structure. However, `Registers` creation
 guarantees that no illegal state can be represented, while `RegistersConfig` is unchecked.  
+
+###  Program LineNumber
+```scala
+type LineNumber = Long Refined Positive
+val minLineNumber: LineNumber = refineMV[Positive](1L)
+val maxLineNumber: LineNumber = refineMV[Positive](Long.MaxValue)
+```
 
 ### Original Commands
 The original paper-computer knows 5 commands:
@@ -146,8 +164,11 @@ object demo {
   )
 
   // use arbitrary min/max values just to show we can!
-  val registersConfig: RegistersConfig = RegistersConfig(minRegisterValue = -21, maxRegisterValue = 42L,
-    registerValues = Map((1L, 42L), (2L, 4L), (3L, 5L)))
+  val registersConfig: RegistersConfig = RegistersConfig(
+    minRegisterValue = -21L,
+    maxRegisterValue = 42L,
+    registerValues = Map((1L, 42L), (2L, 4L), (3L, 5L))
+  )
 
   val result: Mor[RegisterValue] = for {
     resultingRegisters <- ProgramExecution.execute(programAdditionR2PlusR3ToR1, registersConfig)
@@ -164,7 +185,7 @@ object demo {
     ProgramExecution.execute(programAdditionR2PlusR3ToR1, registersConfig, liftAndMap)
   resultWithObservation.unsafeRunSync()
   // yields: Right(Registers(-21,42,Map(1 -> 9, 2 -> 0, 3 -> 0)))
-  // prints out as IO side-effect all intermediate program states:
+  // prints out all intermediate program states as IO side-effect:
   // Right(ProgramState(RegistersOpsConfig(papercomputer.RegistersOps$<function>apercomputer.RegistersOps$$$Lambda$7644/154046850@23f67fd9,papercomputer.RegistersOps$$$Lambda$7645/525407211@21d9452c),Map(170 -> Jmp(120), 120 -> Isz(3), 10 -> Isz(1), 110 -> Jmp(60), 20 -> Jmp(40), 60 -> Isz(2), 160 -> Inc(1), 70 -> Jmp(90), 140 -> Stp, 130 -> Jmp(150), 80 -> Jmp(120), 150 -> Dec(3), 50 -> Jmp(10), 40 -> Dec(1), 30 -> Jmp(60), 90 -> Dec(2), 100 -> Inc(1)),List(),Some(10),Registers(-21,42,Map(1 -> 42, 2 -> 4, 3 -> 5))))
   // ...
   //Right(ProgramState(RegistersOpsConfig(papercomputer.RegistersOps$<function>apercomputer.RegistersOps$$$Lambda$7644/154046850@23f67fd9,papercomputer.RegistersOps$$$Lambda$7645/525407211@21d9452c),Map(170 -> Jmp(120), 120 -> Isz(3), 10 -> Isz(1), 110 -> Jmp(60), 20 -> Jmp(40), 60 -> Isz(2), 160 -> Inc(1), 70 -> Jmp(90), 140 -> Stp, 130 -> Jmp(150), 80 -> Jmp(120), 150 -> Dec(3), 50 -> Jmp(10), 40 -> Dec(1), 30 -> Jmp(60), 90 -> Dec(2), 100 -> Inc(1)),List(),None,Registers(-21,42,Map(1 -> 9, 2 -> 0, 3 -> 0))))
@@ -181,16 +202,16 @@ finding out if a given register value is positive or negative, the only test is 
 or not.
 
 The programs presented here and contained in the library are optimized for positive numbers. For example,
-adding 2 registers could be implemented such that as long as the second register is not zero, the first register
-is incremented and the second register is decremented. This _while-repeat-loop_ will finally have in the first register
-the sum of both original register values.
+adding two registers could be implemented such that as long as the second register is not zero, the first register
+is incremented, and the second register is decremented.
+This _while-repeat-loop_ will finally have in the first register the sum of both original register values.
 
 However, if the second register value is negative, this _while-repeat-loop_ will decrement a negative value to an
-even more negative value farther away from zero. It may thus take an awful lot of time to decrement the second value
+even more negative value further away from zero. It may thus take an awful lot of time to decrement the second value
 through the whole value space to reach its lowest value, so that it can then wrap-around to the highest value and
 after further decrementing finally reach the zero value. At the same time the first register value will move through
-the whole value space in positive direction, wrap around from highest value to lowest value and continue to increment
-until the program stops.
+the whole value space in positive direction, wrap around from the highest value to the lowest value
+and continue to increment until the program stops.
  
 The end result will be correct, but the number of loop iterations may be
 up to the size of your value range minus 1, i.e. for simulating an 8-bit register up to 255 steps, for simulating a
