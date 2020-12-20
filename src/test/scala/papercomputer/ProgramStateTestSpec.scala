@@ -3,8 +3,7 @@ package papercomputer
 import eu.timepit.refined.auto.autoRefineV
 import fs2.{Pure, Stream}
 import org.scalacheck.Gen
-import org.scalatest.Assertion
-import org.scalatest.EitherValues.{convertLeftProjectionToValuable, convertRightProjectionToValuable}
+import org.scalatest.{Assertion, EitherValues}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
@@ -12,7 +11,8 @@ import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
 class ProgramStateTestSpec
   extends AnyFlatSpec
     with ScalaCheckDrivenPropertyChecks
-    with Matchers {
+    with Matchers
+    with EitherValues {
 
   trait Fixture extends CommonFixtures {
     lazy val genProgram: Gen[Program] = genProgramFromCommandlines(Gen.containerOf[Set, (LineNumber, Command)])
@@ -73,32 +73,34 @@ class ProgramStateTestSpec
       }
 
     def assertProgramState(oldProgramState: ProgramState)(
-      programStateUnderTest: ProgramState,
-      newRegistersOpsConfig: RegistersOpsConfig =
-      oldProgramState.registersOpsConfig,
+      morProgramStateUnderTest: Mor[ProgramState],
+      newRegistersOpsConfig: RegistersOpsConfig = oldProgramState.registersOpsConfig,
       newProgram: Program = oldProgramState.program,
       newStack: Stack = oldProgramState.stack,
       newCurrentLineO: Option[LineNumber] = oldProgramState.currentLineO,
       newRegisters: Registers = oldProgramState.registers): Assertion =
-      assertProgramState(programStateUnderTest,
+      assertProgramState(morProgramStateUnderTest,
         newRegistersOpsConfig,
         newProgram,
         newStack,
         newCurrentLineO,
         newRegisters)
 
-    def assertProgramState(programStateUnderTest: ProgramState,
+    def assertProgramState(morProgramStateUnderTest: Mor[ProgramState],
                            registersOpsConfig: RegistersOpsConfig,
                            program: Program,
                            stack: Stack,
                            currentLineO: Option[LineNumber],
-                           registers: Registers): Assertion = {
-      programStateUnderTest.registersOpsConfig.shouldEqual(registersOpsConfig)
-      programStateUnderTest.program.shouldEqual(program)
-      programStateUnderTest.stack.shouldEqual(stack)
-      programStateUnderTest.currentLineO.shouldEqual(currentLineO)
-      programStateUnderTest.registers.shouldEqual(registers)
-    }
+                           registers: Registers): Assertion =
+      morProgramStateUnderTest.fold[Assertion](
+        _ => fail("during tests ProgramState should exist"),
+        programStateUnderTest => {
+          programStateUnderTest.registersOpsConfig.shouldEqual(registersOpsConfig)
+          programStateUnderTest.program.shouldEqual(program)
+          programStateUnderTest.stack.shouldEqual(stack)
+          programStateUnderTest.currentLineO.shouldEqual(currentLineO)
+          programStateUnderTest.registers.shouldEqual(registers)
+        })
   }
 
   behavior of "ProgramState.morPsFromProgramStateConfig"
@@ -110,14 +112,13 @@ class ProgramStateTestSpec
         registers.registerValues)
       val programStateConfig = ProgramStateConfig(emptyProgram, registersConfig)
       val morPs: Mor[ProgramState] = ProgramState.morPsFromProgramStateConfig(programStateConfig)
-      val ps: ProgramState = morPs.right.value
       // config shall come from Registers functions
       // empty program shall be copied into the state
       // stack shall be empty
       // start line shall be None
       // registers shall be copied into the state
       val expectedRegistersOpsConfig = RegistersOpsConfig(RegistersOps.inc, RegistersOps.dec, RegistersOps.isz)
-      assertProgramState(ps, expectedRegistersOpsConfig, emptyProgram, emptyStack, None, registers)
+      assertProgramState(morPs, expectedRegistersOpsConfig, emptyProgram, emptyStack, None, registers)
     }
   }
 
@@ -128,7 +129,6 @@ class ProgramStateTestSpec
         registers.registerValues)
       val programStateConfig = ProgramStateConfig(program, registersConfig)
       val morPs: Mor[ProgramState] = ProgramState.morPsFromProgramStateConfig(programStateConfig)
-      val ps: ProgramState = morPs.right.value
       // config shall come from Registers functions
       // program shall be copied into the state
       // stack shall be empty
@@ -136,7 +136,7 @@ class ProgramStateTestSpec
       // registers shall be copied into the state
       val expectedRegistersOpsConfig = RegistersOpsConfig(RegistersOps.inc, RegistersOps.dec, RegistersOps.isz)
       val expectedCurrentLineO = Some(program.keySet.minBy(_.value))
-      assertProgramState(ps, expectedRegistersOpsConfig, program, emptyStack, expectedCurrentLineO, registers)
+      assertProgramState(morPs, expectedRegistersOpsConfig, program, emptyStack, expectedCurrentLineO, registers)
     }
   }
 
@@ -145,22 +145,19 @@ class ProgramStateTestSpec
   it should "create correct state for empty startLine and empty stack" in new Fixture {
     forAll(genRegistersOpsConfig, genProgram, genRegisters) { (registersOpsConfig, program, registers) =>
       val morPs: Mor[ProgramState] = ProgramState(registersOpsConfig, program, emptyStack, None, registers)
-      val ps: ProgramState = morPs.right.value
       // program shall be copied into the state
       // stack shall be empty
       // start line shall be None
       // registers shall be copied into the state
-      assertProgramState(ps, registersOpsConfig, program, emptyStack, None, registers)
+      assertProgramState(morPs, registersOpsConfig, program, emptyStack, None, registers)
     }
   }
 
   it should "fail for empty startLine and non-empty stack" in new Fixture {
-    forAll(genRegistersOpsConfig,
-      genNonEmptyProgram,
-      genNonEmptyStack,
-      genRegisters) { (registersOpsConfig, program, nonEmptyStack, registers) =>
-      val morPs: Mor[ProgramState] = ProgramState(registersOpsConfig, program, nonEmptyStack, None, registers)
-      morPs.left.value.shouldEqual(IllegalState)
+    forAll(genRegistersOpsConfig, genNonEmptyProgram, genNonEmptyStack, genRegisters) {
+      (registersOpsConfig, program, nonEmptyStack, registers) =>
+        val morPs: Mor[ProgramState] = ProgramState(registersOpsConfig, program, nonEmptyStack, None, registers)
+        morPs.left.value.shouldEqual(IllegalState)
     }
   }
 
@@ -186,12 +183,7 @@ class ProgramStateTestSpec
 
     forAll(genRegistersOpsConfig, gen, genRegisters) {
       case (registersOpsConfig, (program, startLine: LineNumber, stack), registers: Registers) =>
-        val morPs: Mor[ProgramState] =
-          ProgramState(registersOpsConfig,
-            program,
-            stack,
-            Some(startLine),
-            registers)
+        val morPs: Mor[ProgramState] = ProgramState(registersOpsConfig, program, stack, Some(startLine), registers)
         morPs.left.value.shouldEqual(IllegalReferenceToNonExistingLineNumber)
     }
   }
@@ -200,23 +192,12 @@ class ProgramStateTestSpec
     forAll(genRegistersOpsConfig, genProgramAndAnyContainedLine, genStack, genRegisters) {
       case (registersOpsConfig, (program, startLine: LineNumber), stack, registers) =>
         whenever(program.nonEmpty) {
-          val morPs: Mor[ProgramState] =
-            ProgramState(registersOpsConfig,
-              program,
-              stack,
-              Some(startLine),
-              registers)
-          val ps: ProgramState = morPs.right.value
+          val morPs: Mor[ProgramState] = ProgramState(registersOpsConfig, program, stack, Some(startLine), registers)
           // program shall be copied into the state
           // stack shall be copied into the state
           // start line should be given line
           // registers shall be copied into the state
-          assertProgramState(ps,
-            registersOpsConfig,
-            program,
-            stack,
-            Some(startLine),
-            registers)
+          assertProgramState(morPs, registersOpsConfig, program, stack, Some(startLine), registers)
         }
     }
   }
@@ -246,11 +227,10 @@ class ProgramStateTestSpec
         val incF: IncDecF = assertingIncDecF(registerNumber, oldRegisters, newRegisters)
         val config = RegistersOpsConfig(incF, decF, iszF)
         val programState = newProgramState(config, program, stack, Some(currentLine), oldRegisters)
-        val morPs = ProgramState.nextPs(programState)
-        val nextProgramState: ProgramState = morPs.right.value
+        val morNextProgramState = ProgramState.nextPs(programState)
         // current line shall be firstNextLine
         // registers shall be updated
-        assertProgramState(programState)(nextProgramState,
+        assertProgramState(programState)(morNextProgramState,
           newCurrentLineO = Some(firstNextLine),
           newRegisters = newRegisters)
     }
@@ -287,11 +267,10 @@ class ProgramStateTestSpec
         val decF: IncDecF = assertingIncDecF(registerNumber, oldRegisters, newRegisters)
         val config = RegistersOpsConfig(incF, decF, iszF)
         val programState = newProgramState(config, program, stack, Some(currentLine), oldRegisters)
-        val morPs = ProgramState.nextPs(programState)
-        val nextProgramState: ProgramState = morPs.right.value
+        val morNextProgramState = ProgramState.nextPs(programState)
         // current line shall be firstNextLine
         // registers shall be updated
-        assertProgramState(programState)(nextProgramState,
+        assertProgramState(programState)(morNextProgramState,
           newCurrentLineO = Some(firstNextLine),
           newRegisters = newRegisters)
     }
@@ -331,10 +310,9 @@ class ProgramStateTestSpec
 
     forAll(genProgramStateForJmpOK) {
       case (programState, jmpLine) =>
-        val morPs = ProgramState.nextPs(programState)
-        val newProgramState: ProgramState = morPs.right.value
+        val morNextProgramState = ProgramState.nextPs(programState)
         // current line shall be jmpLine
-        assertProgramState(programState)(newProgramState, newCurrentLineO = Some(jmpLine))
+        assertProgramState(programState)(morNextProgramState, newCurrentLineO = Some(jmpLine))
     }
   }
 
@@ -373,10 +351,9 @@ class ProgramStateTestSpec
         val iszF: IszF = assertingIszF(registerNumber, registers, resultingIsZero = true)
         val config = RegistersOpsConfig(incF, decF, iszF)
         val programState = newProgramState(config, program, stack, Some(currentLine), registers)
-        val morPs = ProgramState.nextPs(programState)
-        val nextProgramState: ProgramState = morPs.right.value
+        val morNextProgramState = ProgramState.nextPs(programState)
         // current line shall be secondNextLine
-        assertProgramState(programState)(nextProgramState, newCurrentLineO = Some(secondNextLine))
+        assertProgramState(programState)(morNextProgramState, newCurrentLineO = Some(secondNextLine))
     }
   }
 
@@ -413,10 +390,9 @@ class ProgramStateTestSpec
         val iszF: IszF = _ => _ => Right(false)
         val config = RegistersOpsConfig(incF, decF, iszF)
         val programState = newProgramState(config, program, stack, Some(currentLine), registers)
-        val morPs = ProgramState.nextPs(programState)
-        val nextProgramState: ProgramState = morPs.right.value
+        val morNextProgramState = ProgramState.nextPs(programState)
         // current line shall be firstNextLine
-        assertProgramState(programState)(nextProgramState, newCurrentLineO = Some(firstNextLine))
+        assertProgramState(programState)(morNextProgramState, newCurrentLineO = Some(firstNextLine))
     }
   }
 
@@ -464,10 +440,9 @@ class ProgramStateTestSpec
     } yield programState
 
     forAll(genProgramStateForStp) { programState =>
-      val morPs = ProgramState.nextPs(programState)
-      val newProgramState: ProgramState = morPs.right.value
+      val morNextProgramState = ProgramState.nextPs(programState)
       // current line shall be None
-      assertProgramState(programState)(newProgramState, newCurrentLineO = None)
+      assertProgramState(programState)(morNextProgramState, newCurrentLineO = None)
     }
   }
 
@@ -480,12 +455,11 @@ class ProgramStateTestSpec
     } yield programState
 
     forAll(genProgramStateForStp) { programState =>
-      val morPs = ProgramState.nextPs(programState)
-      val newProgramState: ProgramState = morPs.right.value
+      val morNextProgramState = ProgramState.nextPs(programState)
       // stack shall be the tail of the original stack
       // current program and current line shall come from the head of the original stack
       val (newProgram, newCurrentLine) :: newStack = programState.stack
-      assertProgramState(programState)(newProgramState,
+      assertProgramState(programState)(morNextProgramState,
         newProgram = newProgram,
         newStack = newStack,
         newCurrentLineO = Some(newCurrentLine))
@@ -505,12 +479,11 @@ class ProgramStateTestSpec
 
     forAll(genProgramStateForSubOK) {
       case (programState, subLine, firstNextLine) =>
-        val morPs = ProgramState.nextPs(programState)
-        val newProgramState: ProgramState = morPs.right.value
+        val morNextProgramState = ProgramState.nextPs(programState)
         // new current line shall be subLine
         // new stack stall be old stack with (currentProgram, firstNextLine) prepended
         assertProgramState(programState)(
-          newProgramState,
+          morNextProgramState,
           newStack = (programState.program, firstNextLine) +: programState.stack,
           newCurrentLineO = Some(subLine))
     }
@@ -557,13 +530,12 @@ class ProgramStateTestSpec
 
     forAll(genProgramStateForNonEmptyPrg) {
       case (programState, subProgram, firstNextLine) =>
-        val morPs = ProgramState.nextPs(programState)
-        val newProgramState: ProgramState = morPs.right.value
+        val morNextProgramState = ProgramState.nextPs(programState)
         // new program shall be subProgram
         // new stack stall be old stack with old program and firstNextLine prepended
         val newStack: Stack = (programState.program, firstNextLine) +: programState.stack
         assertProgramState(programState)(
-          newProgramState,
+          morNextProgramState,
           newProgram = subProgram,
           newStack = newStack,
           newCurrentLineO = Some(subProgram.keys.minBy(_.value))
@@ -582,11 +554,10 @@ class ProgramStateTestSpec
 
     forAll(genProgramStateForEmptyPrg) {
       case (programState, firstNextLine) =>
-        val morPs = ProgramState.nextPs(programState)
-        val newProgramState: ProgramState = morPs.right.value
+        val morNextProgramState = ProgramState.nextPs(programState)
         // new program shall be subProgram
         // new stack stall be old stack with old program and firstNextLine prepended
-        assertProgramState(programState)(newProgramState, newCurrentLineO = Some(firstNextLine))
+        assertProgramState(programState)(morNextProgramState, newCurrentLineO = Some(firstNextLine))
     }
   }
 
@@ -653,7 +624,7 @@ class ProgramStateTestSpec
     forAll(genNonEmptyStream, genNonFinishedProgramState, genEndingProgramState) {
       (streamSoFar, psBefore, psLast) =>
         val nextF: ProgramState => Mor[ProgramState] = prevPs => {
-          prevPs.shouldEqual(psBefore.right.get)
+          psBefore.shouldEqual(Right(prevPs))
           psLast
         }
         val newStream: Stream[Pure, Mor[ProgramState]] = ProgramState.stream(streamSoFar, psBefore, nextF)

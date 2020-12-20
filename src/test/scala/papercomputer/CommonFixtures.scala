@@ -1,6 +1,5 @@
 package papercomputer
 
-import eu.timepit.refined.api.{Refined, Validate}
 import eu.timepit.refined.auto.autoRefineV
 import eu.timepit.refined.numeric.{NonNegative, Positive}
 import eu.timepit.refined.refineV
@@ -17,11 +16,11 @@ trait CommonFixtures {
       maxRv <- Gen.chooseNum[RegisterValue](0, highestMaxRv)
     } yield (minRv, maxRv)
 
-  // for performance reasons this assumes only correct values are refined within these tests,
-  // so refineV will always be a Right
   lazy val genRegisterNumber: Gen[RegisterNumber] =
     Gen.chooseNum(minRegisterNumber.value, maxRegisterNumber.value)
-      .map(refineV[NonNegative](_).right.get)
+      .map(refineV[NonNegative](_).getOrElse({
+        throw new RuntimeException("generation of registry numbers should not fail")
+      }))
 
   def genMinMaxRegisterValueRegisterValues(minNumRegisters: RegisterNumber,
                                            lowestMinRv: RegisterValue = minRegisterValue,
@@ -45,7 +44,9 @@ trait CommonFixtures {
         lowestMinRv,
         highestMaxRv)
       rsConfig = RegistersConfig(minRV, maxRV, rvs)
-      rs = Registers.fromRegistersConfig(rsConfig).right.get
+      rs = Registers.fromRegistersConfig(rsConfig).getOrElse({
+        throw new RuntimeException("generation of registers should not fail")
+      })
     } yield (minRV, maxRV, rvs, rs)
 
   def genRegisters: Gen[Registers] = genMinMaxRegisterValueRegisterValuesRegisters(0L).map(_._4)
@@ -53,8 +54,10 @@ trait CommonFixtures {
   // for performance reasons this assumes only correct values are refined within these tests,
   // so refineV will always be a Right
   lazy val genLineNumber: Gen[LineNumber] =
-    Gen.chooseNum(minLineNumber.value, maxLineNumber.value)
-      .map(refineV[Positive](_).right.get)
+  Gen.chooseNum(minLineNumber.value, maxLineNumber.value)
+    .map(refineV[Positive](_).getOrElse({
+      throw new RuntimeException("generation of line numbers should not fail")
+    }))
 
   lazy val genCommand: Gen[Command] = {
     val genInc = genRegisterNumber.map(Inc)
@@ -114,7 +117,9 @@ trait CommonFixtures {
                       stack: Stack,
                       currentLineO: Option[LineNumber],
                       rs: Registers): ProgramState =
-    ProgramState(config, program, stack, currentLineO, rs).right.get
+    ProgramState(config, program, stack, currentLineO, rs).getOrElse({
+      throw new RuntimeException("generation of program state should not fail")
+    })
 
   def genProgramState(program: Program, stack: Stack, currentLine: LineNumber): Gen[ProgramState] =
     for {

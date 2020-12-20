@@ -3,7 +3,7 @@ package papercomputer
 import eu.timepit.refined.auto.autoRefineV
 import org.scalacheck.Gen
 import org.scalatest.Assertion
-import org.scalatest.EitherValues.{convertLeftProjectionToValuable, convertRightProjectionToValuable}
+import org.scalatest.EitherValues.convertLeftProjectionToValuable
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
@@ -33,16 +33,19 @@ class RegistersTestSpec
         // and check that only this register number was inc/dec'ed and all others are kept the same
         originalRs.registerValues.keys.foreach(rnUnderTest => {
           val morNewRs: Mor[Registers] = incDecF(rnUnderTest)(originalRs)
-          val newRs: Registers = morNewRs.right.value
-          newRs.minRegisterValue.shouldEqual(originalRs.minRegisterValue)
-          newRs.maxRegisterValue.shouldEqual(originalRs.maxRegisterValue)
-          originalRs.registerValues.foreach({
-            case (rnToCheck: RegisterNumber, rvOrig: RegisterValue) =>
-              val expectedRv =
-                if (rnToCheck == rnUnderTest) expectedRvForRnUnderTestF(rvOrig)
-                else rvOrig
-              newRs.registerValues(rnToCheck).shouldEqual(expectedRv)
-          })
+          morNewRs.fold(
+            _ => fail("incDec should not fail"),
+            newRs => {
+              newRs.minRegisterValue.shouldEqual(originalRs.minRegisterValue)
+              newRs.maxRegisterValue.shouldEqual(originalRs.maxRegisterValue)
+              originalRs.registerValues.foreach({
+                case (rnToCheck: RegisterNumber, rvOrig: RegisterValue) =>
+                  val expectedRv =
+                    if (rnToCheck == rnUnderTest) expectedRvForRnUnderTestF(rvOrig)
+                    else rvOrig
+                  newRs.registerValues(rnToCheck).shouldEqual(expectedRv)
+              })
+            })
         })
       }
     }
@@ -119,10 +122,12 @@ class RegistersTestSpec
     } yield rsConfig
     forAll(gen) { rsConfig =>
       val mors: Mor[Registers] = Registers.fromRegistersConfig(rsConfig)
-      val rs = mors.right.value // assert it is a Right(_) and ignore the values as they are tested in a different test
-      rs.minRegisterValue.shouldEqual(rsConfig.minRegisterValue)
-      rs.maxRegisterValue.shouldEqual(rsConfig.maxRegisterValue)
-      rs.registerValues.shouldEqual(rsConfig.registerValues)
+      mors.fold(_ => fail("fromRegistersConfig should not fail"),
+        rs => {
+          rs.minRegisterValue.shouldEqual(rsConfig.minRegisterValue)
+          rs.maxRegisterValue.shouldEqual(rsConfig.maxRegisterValue)
+          rs.registerValues.shouldEqual(rsConfig.registerValues)
+        })
     }
   }
 
@@ -167,7 +172,7 @@ class RegistersTestSpec
       val rvs = rs.registerValues
       whenever(rvs.values.exists(_ == 0) && rvs.values.exists(_ != 0)) {
         rvs.foreach({
-          case (rn, rv) => RegistersOps.isz(rn)(rs).right.value.shouldEqual(rv == 0)
+          case (rn, rv) => RegistersOps.isz(rn)(rs).shouldEqual(Right(rv == 0))
         })
       }
     }

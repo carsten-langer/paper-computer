@@ -3,7 +3,6 @@ package papercomputer
 import cats.effect.IO
 import eu.timepit.refined.auto.autoRefineV
 import org.scalacheck.Gen
-import org.scalatest.EitherValues.convertRightProjectionToValuable
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
@@ -65,21 +64,21 @@ class ProgramLibraryTestSpec
     val morRs: Mor[Registers] = ProgramExecution
       .execute(ProgramLibrary.programZeroR1, registersConfig45780, printRegisters(true))
       .unsafeRunSync()
-    morRs.right.value.registerValues(1L).shouldEqual(0)
+    morRs.map(_.registerValues(1L)).shouldEqual(Right(0))
   }
 
   it should "run programAdditionR1plusR2toR1 with expected result" in new Fixture {
     val morRs: Mor[Registers] = ProgramExecution
       .execute(ProgramLibrary.programAdditionR1plusR2toR1, registersConfig45780, printRegisters(true))
       .unsafeRunSync()
-    morRs.right.value.registerValues(1L).shouldEqual(9)
+    morRs.map(_.registerValues(1L)).shouldEqual(Right(9))
   }
 
   it should "run programAdditionR2plusR3toR1 with expected result" in new Fixture {
     val morRs: Mor[Registers] = ProgramExecution
       .execute(ProgramLibrary.programAdditionR2plusR3toR1, registersConfig45780, printRegisters(true))
       .unsafeRunSync()
-    morRs.right.value.registerValues(1L).shouldEqual(13)
+    morRs.map(_.registerValues(1L)).shouldEqual(Right(13))
   }
 
   it should "run fibonacci with expected result" in new Fixture {
@@ -88,7 +87,7 @@ class ProgramLibraryTestSpec
         registersConfig45780,
         printRegisters(true))
       .unsafeRunSync()
-    morRs.right.value.registerValues(1L).shouldEqual(21)
+    morRs.map(_.registerValues(1L)).shouldEqual(Right(21))
   }
 
   behavior of "Property-based tests of ProgramLibrary test via ProgramExecution.execute"
@@ -108,7 +107,7 @@ class ProgramLibraryTestSpec
         val morRs = ProgramExecution
           .execute(ProgramLibrary.zeroRx(rn), rsConfig, printRegisters)
           .unsafeRunSync()
-        morRs.right.value.registerValues(rn).shouldEqual(0)
+        morRs.map(_.registerValues(rn)).shouldEqual(Right(0))
     }
   }
 
@@ -129,7 +128,7 @@ class ProgramLibraryTestSpec
         val morRs = ProgramExecution
           .execute(ProgramLibrary.raPlusRbToRa(rnA, rnB), rsConfig, printRegisters)
           .unsafeRunSync()
-        morRs.right.value.registerValues(rnA).shouldEqual(expectedRv)
+        morRs.map(_.registerValues(rnA)).shouldEqual(Right(expectedRv))
     }
   }
 
@@ -154,7 +153,7 @@ class ProgramLibraryTestSpec
         val morRs = ProgramExecution
           .execute(ProgramLibrary.rbPlusRcToRa(rnA, rnB, rnC), rsConfig, printRegisters)
           .unsafeRunSync()
-        morRs.right.value.registerValues(rnA).shouldEqual(expectedRv)
+        morRs.map(_.registerValues(rnA)).shouldEqual(Right(expectedRv))
     }
   }
 
@@ -177,7 +176,7 @@ class ProgramLibraryTestSpec
       case (rsConfig, fromRn, fromRv, toRn, tmpRn) =>
         val morRs = ProgramExecution.execute(ProgramLibrary.copy(fromRn, toRn, tmpRn), rsConfig, printRegisters)
           .unsafeRunSync()
-        morRs.right.value.registerValues(toRn).shouldEqual(fromRv)
+        morRs.map(_.registerValues(toRn)).shouldEqual(Right(fromRv))
     }
   }
 
@@ -204,7 +203,7 @@ class ProgramLibraryTestSpec
         val morRs = ProgramExecution
           .execute(ProgramLibrary.multiplyRbWithRcToRa(rnA, rnB, rnC, rnT1, rnT2), rsConfig, printRegisters)
           .unsafeRunSync()
-        morRs.right.value.registerValues(rnA).shouldEqual(expectedRv)
+        morRs.map(_.registerValues(rnA)).shouldEqual(Right(expectedRv))
     }
   }
 
@@ -225,7 +224,7 @@ class ProgramLibraryTestSpec
         val morRs = ProgramExecution
           .execute(ProgramLibrary.raMinusRbToRa(rnA, rnB), rsConfig, printRegisters)
           .unsafeRunSync()
-        morRs.right.value.registerValues(rnA).shouldEqual(expectedRv)
+        morRs.map(_.registerValues(rnA)).shouldEqual(Right(expectedRv))
     }
   }
 }

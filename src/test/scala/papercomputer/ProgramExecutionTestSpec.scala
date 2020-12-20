@@ -6,7 +6,6 @@ import cats.implicits.catsStdInstancesForEither
 import fs2.{Pure, Stream}
 import org.scalacheck.Gen
 import org.scalatest.Assertions
-import org.scalatest.EitherValues.convertRightProjectionToValuable
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
@@ -56,7 +55,7 @@ class ProgramExecutionTestSpec
           val ioMorRegisters: IO[Mor[Registers]] = ProgramExecution.execute(stream, observationF)
           val morRegisters: Mor[Registers] = ioMorRegisters.unsafeRunSync()
           i.shouldEqual(registersList.size - 1)
-          morRegisters.right.value.shouldEqual(registersList.last)
+          morRegisters.shouldEqual(Right(registersList.last))
         }
     }
   }
