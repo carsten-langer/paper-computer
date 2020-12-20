@@ -3,7 +3,7 @@ name := "paper-computer"
 version := "0.7"
 
 // https://www.scala-lang.org/download/all.html
-scalaVersion := "2.13.0"
+scalaVersion := "2.13.3"
 
 // https://typelevel.org/cats/
 libraryDependencies += "org.typelevel" %% "cats-core" % "2.3.0"
@@ -48,7 +48,6 @@ scalacOptions ++= Seq(
   "-Xlint:inaccessible", // Warn about inaccessible types in method signatures.
   "-Xlint:infer-any", // Warn when a type argument is inferred to be `Any`.
   "-Xlint:missing-interpolator", // A string literal appears to be missing an interpolator id.
-  "-Xlint:nullary-override", // Warn when non-nullary `def f()' overrides nullary `def f'.
   "-Xlint:nullary-unit", // Warn when nullary methods return Unit.
   "-Xlint:option-implicit", // Option.apply used implicit view.
   "-Xlint:package-object-classes", // Class or object defined in package object.

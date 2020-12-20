@@ -585,7 +585,7 @@ class ProgramStateTestSpec
       programState = newProgramState(config, program, emptyStack, None, registers)
     } yield Right(programState)
 
-    lazy val nextNotToBeCalledF: ProgramState => Mor[ProgramState] = _ => fail
+    lazy val nextNotToBeCalledF: ProgramState => Mor[ProgramState] = _ => fail()
   }
 
   it should "add a Left to the stream without calling next" in new StreamFixture {
