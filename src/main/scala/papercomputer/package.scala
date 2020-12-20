@@ -6,6 +6,7 @@ import scala.collection.immutable
 
 package object papercomputer {
 
+  // TODO reword match-computer to paper-computer throughout the project
   /** The architecture model of the match-computer determines the
     * - min and max register values,
     * - max register numbers
