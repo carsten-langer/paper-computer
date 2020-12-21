@@ -12,3 +12,6 @@ addSbtPlugin("org.lyranthe.sbt" % "partial-unification" % "1.1.2")
 
 // https://github.com/typelevel/kind-projector
 addCompilerPlugin("org.typelevel" %% "kind-projector" % "0.11.2" cross CrossVersion.full)
+
+// https://stryker-mutator.io/docs/stryker4s/getting-started/
+addSbtPlugin("io.stryker-mutator" % "sbt-stryker4s" % "0.10.0")
